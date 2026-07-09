@@ -1,0 +1,17 @@
+{
+  "name": "Семейный бюджет",
+  "short_name": "Бюджет",
+  "description": "Личный бюджет семьи на мобильном устройстве",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08110e",
+  "theme_color": "#0f1722",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
