@@ -932,7 +932,7 @@ function App() {
       {navItems.map((item) => {
         if (item.id === 'add') {
           return (
-            <button key={item.id} className="bottom-nav__add" onClick={handleOpenAddSheet} type="button">
+            <button key={item.id} className="bottom-nav__add" onClick={() => handleOpenAddSheet()} type="button">
               {item.icon}
             </button>
           );
