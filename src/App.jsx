@@ -167,6 +167,7 @@ function App() {
   });
   const [view, setView] = useState('home');
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -188,9 +189,13 @@ function App() {
   }));
 
   const refreshTransactions = async (options = {}) => {
-    const { showStatus = true, statusMessage = 'Обновлено' } = options;
-    setLoading(true);
-    setStatus('');
+    const { showStatus = true, statusMessage = 'Обновлено', showLoading = true } = options;
+    if (showLoading) {
+      setLoading(true);
+    }
+    if (showStatus) {
+      setStatus('');
+    }
 
     try {
       const callbackName = `familyBudgetCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -233,7 +238,9 @@ function App() {
       setStatus('Ошибка загрузки');
       return [];
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -433,9 +440,8 @@ function App() {
       setForm((prev) => ({
         ...prev,
         person: readStoredSelection(PERSON_STORAGE_KEY, prev.person || 'Дима'),
-        category: prev.type === 'Расход'
-          ? readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, prev.category || expenseCategories[0].label)
-          : readStoredSelection(INCOME_CATEGORY_STORAGE_KEY, prev.category || incomeCategories[0].label)
+        type: 'Расход',
+        category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, expenseCategories[0].label)
       }));
     }
     setIsAddSheetOpen(true);
@@ -467,7 +473,7 @@ function App() {
 
   const handleCategorySelect = (categoryLabel) => {
     setForm((prev) => ({ ...prev, category: categoryLabel }));
-    persistSelection(prev.type === 'Расход' ? EXPENSE_CATEGORY_STORAGE_KEY : INCOME_CATEGORY_STORAGE_KEY, categoryLabel);
+    persistSelection(form.type === 'Расход' ? EXPENSE_CATEGORY_STORAGE_KEY : INCOME_CATEGORY_STORAGE_KEY, categoryLabel);
   };
 
   const handleSelectDay = (day) => {
@@ -500,7 +506,7 @@ function App() {
       await fetch(API_URL, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify({
           action: 'delete',
           id: selectedTransaction.id
@@ -522,23 +528,38 @@ function App() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!form.amount) return;
+    if (isSubmitting) return;
 
-    setLoading(true);
+    const amount = parseAmount(form.amount);
+    if (!amount) return;
+
+    const isEditing = Boolean(editingTransaction);
+    const payload = isEditing
+      ? {
+          action: 'update',
+          id: editingTransaction.id,
+          person: form.person,
+          type: form.type,
+          category: form.category,
+          amount,
+          comment: form.comment
+        }
+      : {
+          action: 'create',
+          person: form.person,
+          type: form.type,
+          category: form.category,
+          amount,
+          comment: form.comment
+        };
+
+    setIsSubmitting(true);
     try {
       await fetch(API_URL, {
         method: 'POST',
         mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: editingTransaction ? 'update' : 'create',
-          id: editingTransaction?.id,
-          person: form.person,
-          type: form.type,
-          category: form.category,
-          amount: Number(form.amount),
-          comment: form.comment
-        })
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
       });
 
       setIsAddSheetOpen(false);
@@ -546,15 +567,16 @@ function App() {
       setEditingTransaction(null);
       setSelectedTransaction(null);
       setForm((prev) => ({ ...prev, amount: '', comment: '' }));
-      setView(editingTransaction ? 'history' : 'home');
-      setStatus(editingTransaction ? 'Изменено' : 'Добавлено');
+      setView('home');
+      setStatus(isEditing ? 'Изменено' : 'Добавлено');
       window.setTimeout(() => {
-        void refreshTransactions({ showStatus: false });
+        void refreshTransactions({ showStatus: false, showLoading: false });
       }, 1000);
     } catch (error) {
       console.error(error);
-      setStatus(error.message || 'Не удалось сохранить');
-      setLoading(false);
+      setStatus('Ошибка сохранения');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -727,8 +749,8 @@ function App() {
             </div>
 
             <div className="sheet-actions">
-              <button className="primary-btn" type="submit" disabled={loading}>
-                {loading ? 'Сохраняю…' : editingTransaction ? 'Сохранить' : 'Сохранить'}
+              <button className="primary-btn" type="submit" disabled={loading || isSubmitting}>
+                {isSubmitting ? 'Сохраняю…' : editingTransaction ? 'Сохранить' : 'Сохранить'}
               </button>
             </div>
           </form>
