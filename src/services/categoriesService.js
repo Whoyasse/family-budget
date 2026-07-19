@@ -78,7 +78,7 @@ export async function loadCategoryLimits(householdId) {
   }, {});
 }
 
-export async function saveCategoryLimit(householdId, categoryId, monthKey, value, createdBy) {
+export async function saveCategoryLimit(householdId, categoryId, monthKey, value) {
   const amount = Number(String(value).replace(',', '.'));
   const baseQuery = supabase.from('category_limits').delete().eq('household_id', householdId).eq('category_id', categoryId);
   const deleteQuery = monthKey ? baseQuery.eq('month_key', monthKey) : baseQuery.is('month_key', null);
@@ -92,7 +92,6 @@ export async function saveCategoryLimit(householdId, categoryId, monthKey, value
   const { data, error } = await supabase.from('category_limits').insert({
     household_id: householdId,
     category_id: categoryId,
-    created_by: createdBy,
     month_key: monthKey || null,
     amount
   }).select('category_id,month_key,amount').single();

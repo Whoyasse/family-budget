@@ -446,7 +446,7 @@ function App() {
 
   const handleCategoryLimitChange = async (categoryId, monthKey, value) => {
     try {
-      await saveCategoryLimit(householdId, categoryId, monthKey, value, authUser.id);
+      await saveCategoryLimit(householdId, categoryId, monthKey, value);
       setCategoryBudgets(await loadCategoryLimits(householdId));
       setStatus(value ? 'Лимит сохранён' : 'Лимит убран');
     } catch (error) {

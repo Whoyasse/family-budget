@@ -1040,6 +1040,26 @@ button.category-row {
 .transaction-edit-form select,
 .transaction-edit-form input {
   width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--theme-border);
+  border-radius: 14px;
+  background: var(--theme-surface-raised);
+  color: var(--theme-text);
+  font: inherit;
+  padding: 0 14px;
+  color-scheme: dark;
+}
+
+.transaction-edit-form select:focus,
+.transaction-edit-form input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.transaction-edit-form option {
+  background: var(--theme-surface-raised);
+  color: var(--theme-text);
 }
 
 .wizard-sheet {

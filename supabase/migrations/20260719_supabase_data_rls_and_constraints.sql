@@ -32,7 +32,6 @@ alter table public.categories
 alter table public.category_limits
   add column if not exists household_id uuid,
   add column if not exists category_id uuid,
-  add column if not exists created_by uuid,
   add column if not exists month_key text,
   add column if not exists amount numeric not null default 0;
 
