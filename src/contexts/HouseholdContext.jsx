@@ -15,7 +15,7 @@ const normalizeBudgetUser = (user) => ({
 
 export function HouseholdProvider({ children }) {
   const { authUser } = useAuth();
-  const [state, setState] = useState({ householdId: null, household: null, membershipRole: null, budgetUsers: [], loading: true, createdHousehold: false, onboardingCompleted: null });
+  const [state, setState] = useState({ householdId: null, household: null, membershipRole: null, budgetUsers: [], loading: true, onboardingCompleted: null });
 
   const loadBudgetUsers = useCallback(async (householdId) => {
     const { data, error } = await supabase.from('budget_users').select('id, name, avatar, created_at').eq('household_id', householdId).order('created_at');
@@ -68,7 +68,7 @@ export function HouseholdProvider({ children }) {
 
   const refreshHousehold = useCallback(async () => {
     if (!authUser) {
-      setState({ householdId: null, household: null, membershipRole: null, budgetUsers: [], loading: false, createdHousehold: false, onboardingCompleted: null });
+      setState({ householdId: null, household: null, membershipRole: null, budgetUsers: [], loading: false, onboardingCompleted: null });
       return;
     }
     setState((current) => ({ ...current, loading: true }));
@@ -80,7 +80,7 @@ export function HouseholdProvider({ children }) {
       try {
         const { data: settingsRow, error: settingsError } = await supabase.from('household_settings').select('onboarding_completed').eq('household_id', data.household_id).maybeSingle();
         if (settingsError) throw settingsError;
-        onboardingCompleted = settingsRow?.onboarding_completed ?? !state.createdHousehold;
+        onboardingCompleted = settingsRow?.onboarding_completed ?? false;
         if (!settingsRow) {
           const { error: initializeError } = await supabase.from('household_settings').upsert({ household_id: data.household_id, onboarding_completed: onboardingCompleted }, { onConflict: 'household_id' });
           if (initializeError) throw initializeError;
@@ -97,25 +97,30 @@ export function HouseholdProvider({ children }) {
         }
       } catch (loadError) { console.error(loadError); }
     }
-    setState((current) => ({ householdId: data?.household_id || null, household: data?.households || null, membershipRole: data?.role || null, budgetUsers, loading: false, createdHousehold: current.createdHousehold, onboardingCompleted }));
-  }, [authUser, loadBudgetUsers, state.createdHousehold]);
+    setState({ householdId: data?.household_id || null, household: data?.households || null, membershipRole: data?.role || null, budgetUsers, loading: false, onboardingCompleted });
+  }, [authUser, loadBudgetUsers]);
 
-  const markHouseholdCreated = useCallback(() => setState((current) => ({ ...current, createdHousehold: true })), []);
   const completeOnboarding = useCallback(async () => {
     if (!state.householdId) throw new Error('Семья не найдена.');
-    const { error } = await supabase.from('household_settings').upsert({ household_id: state.householdId, onboarding_completed: true }, { onConflict: 'household_id' });
+    const { data, error } = await supabase
+      .from('household_settings')
+      .update({ onboarding_completed: true })
+      .eq('household_id', state.householdId)
+      .select('household_id, onboarding_completed')
+      .maybeSingle();
     if (error) throw error;
+    if (!data?.onboarding_completed) throw new Error('Не удалось подтвердить завершение настройки семьи.');
     setState((current) => ({ ...current, onboardingCompleted: true }));
   }, [state.householdId]);
   const restartOnboarding = useCallback(async () => {
     if (!state.householdId) throw new Error('Семья не найдена.');
-    const { error } = await supabase.from('household_settings').upsert({ household_id: state.householdId, onboarding_completed: false }, { onConflict: 'household_id' });
+    const { error } = await supabase.from('household_settings').update({ onboarding_completed: false }).eq('household_id', state.householdId);
     if (error) throw error;
     setState((current) => ({ ...current, onboardingCompleted: false }));
   }, [state.householdId]);
   useEffect(() => { refreshHousehold(); }, [refreshHousehold]);
 
-  return <HouseholdContext.Provider value={{ ...state, refreshHousehold, markHouseholdCreated, completeOnboarding, restartOnboarding, updateHouseholdName, createBudgetUser, updateBudgetUser, deleteBudgetUser }}>{children}</HouseholdContext.Provider>;
+  return <HouseholdContext.Provider value={{ ...state, refreshHousehold, completeOnboarding, restartOnboarding, updateHouseholdName, createBudgetUser, updateBudgetUser, deleteBudgetUser }}>{children}</HouseholdContext.Provider>;
 }
 
 export const useHousehold = () => useContext(HouseholdContext);
