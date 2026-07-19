@@ -450,8 +450,6 @@ h4 {
   color: var(--theme-text) !important;
   font-size: .88rem;
   line-height: 1.2;
-  opacity: 1 !important;
-  visibility: visible !important;
 }
 
 .progress-row {

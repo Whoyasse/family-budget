@@ -9,7 +9,7 @@ export function createDefaultCategories() {
   return [
     ...expenseCategories.map((category) => ({ ...category, id: `expense-${slugify(category.label)}`, type: 'expense' })),
     ...incomeCategories.map((category) => ({ ...category, id: `income-${slugify(category.label)}`, type: 'income' }))
-  ].map((category) => ({ ...category, name: category.label, archived: false, previousNames: [category.label], createdAt: new Date().toISOString() }));
+  ].map((category) => ({ ...category, archived: false, previousNames: [category.label], createdAt: new Date().toISOString() }));
 }
 
 export function normalizeCategory(category) {
