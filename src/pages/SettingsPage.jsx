@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ACCENTS, THEMES } from '../utils/settingsStorage';
 import { AVATARS } from '../components/OnboardingWizard';
 
-function SettingsPage({ startBalance, exchangeRate, onSaveBalance, settings, onSettingsChange, transactions, onDeleteUser, onExport, onRestartOnboarding, onStatus, onManageCategories }) {
+function SettingsPage({ startBalance, exchangeRate, onSaveBalance, settings, onSettingsChange, transactions, onDeleteUser, onExport, onRestartOnboarding, onStatus, onManageCategories, onSignOut }) {
   const [balanceInput, setBalanceInput] = useState(String((startBalance ?? 0) * (exchangeRate || 1)));
   const [editingUserId, setEditingUserId] = useState(null);
   const [draftUser, setDraftUser] = useState(null);
@@ -17,7 +17,7 @@ function SettingsPage({ startBalance, exchangeRate, onSaveBalance, settings, onS
     <section className="card settings-section"><div className="section-title"><h4>Тема</h4></div><div className="choice-grid theme-grid">{Object.entries(THEMES).map(([id, theme]) => <button key={id} type="button" className={settings.theme === id ? 'active' : ''} onClick={() => onSettingsChange({ ...settings, theme: id })}>{id === 'dark' ? '🌙' : '☀️'} {theme.label}</button>)}</div></section>
     <section className="card settings-section"><div className="section-title"><h4>Пользователи</h4><button className="text-action" type="button" onClick={addUser}>Добавить</button></div><div className="settings-users">{settings.users.map((user) => <div className="settings-user" key={user.id}>{editingUserId === user.id ? <><input value={draftUser?.name ?? user.name} onChange={(event) => setDraftUser({ ...(draftUser || user), name: event.target.value })} /><div className="avatar-picker compact">{AVATARS.map((avatar) => <button key={avatar} type="button" className={(draftUser?.avatar ?? user.avatar) === avatar ? 'active' : ''} onClick={() => setDraftUser({ ...(draftUser || user), avatar })}>{avatar}</button>)}</div><button className="primary-btn" type="button" onClick={saveUser}>Готово</button></> : <><span className="settings-user-avatar">{user.avatar}</span><strong>{user.name}</strong><button className="text-action" type="button" onClick={() => { setDraftUser(user); setEditingUserId(user.id); }}>Изменить</button><button className="text-action danger" type="button" onClick={() => deleteUser(user)}>Удалить</button></>}</div>)}</div></section>
     <section className="card settings-section"><div className="section-title"><h4>Категории</h4></div><button className="primary-btn settings-wide-btn" type="button" onClick={onManageCategories}>Управление категориями</button></section>
-    <section className="card settings-section"><h4>Данные</h4><button className="primary-btn settings-wide-btn" type="button" onClick={onExport}>Экспорт в Excel</button><button className="text-action" type="button" onClick={() => { if (window.confirm('Перезапустить первоначальную настройку?')) onRestartOnboarding(); }}>Пройти настройку заново</button></section>
+    <section className="card settings-section"><h4>Данные</h4><button className="primary-btn settings-wide-btn" type="button" onClick={onExport}>Экспорт в Excel</button><button className="text-action" type="button" onClick={() => { if (window.confirm('Перезапустить первоначальную настройку?')) onRestartOnboarding(); }}>Пройти настройку заново</button><button className="text-action danger" type="button" onClick={onSignOut}>Выйти из аккаунта</button></section>
   </div>;
 }
 

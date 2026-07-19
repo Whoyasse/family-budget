@@ -1,0 +1,6 @@
+import { createContext, useContext, useCallback, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from './AuthContext';
+const HouseholdContext = createContext(null);
+export function HouseholdProvider({ children }) { const { authUser } = useAuth(); const [state, setState] = useState({ householdId: null, household: null, membershipRole: null, loading: true }); const refreshHousehold = useCallback(async () => { if (!authUser) return setState({ householdId:null, household:null, membershipRole:null, loading:false }); setState((current) => ({ ...current, loading:true })); const { data, error } = await supabase.from('household_members').select('household_id, role, households(id, name)').eq('auth_user_id', authUser.id).limit(1).maybeSingle(); if (error) console.error(error); setState({ householdId:data?.household_id || null, household:data?.households || null, membershipRole:data?.role || null, loading:false }); }, [authUser]); useEffect(() => { refreshHousehold(); }, [refreshHousehold]); return <HouseholdContext.Provider value={{ ...state, refreshHousehold }}>{children}</HouseholdContext.Provider>; }
+export const useHousehold = () => useContext(HouseholdContext);

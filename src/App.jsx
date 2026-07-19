@@ -19,6 +19,10 @@ import { exportTransactionsToXlsx } from './utils/exportTransactions';
 import { getExchangeRate } from './utils/exchangeRates';
 import { getBalancePoints } from './utils/balanceHistory';
 import { findCategory, getCategoryLimit, loadCategories, persistCategories, loadCategoryBudgets, persistCategoryBudgets, setCategoryDefaultLimit, setCategoryMonthLimit } from './utils/categoryStorage';
+import { useAuth } from './contexts/AuthContext';
+import { useHousehold } from './contexts/HouseholdContext';
+import AuthPage from './pages/AuthPage';
+import HouseholdSetupPage from './pages/HouseholdSetupPage';
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbwrEtsTaCzgaF0OGDEApNa1WJd-Yof0PUXYhiOodLS9_Tx0Rx9vYQHXrd0CKMyQ7AeO/exec';
 const STORAGE_KEY = 'startBalance';
@@ -158,6 +162,8 @@ function normalizeTransactions(payload) {
 }
 
 function App() {
+  const { session, authUser, loading: authLoading, signOut } = useAuth();
+  const { householdId, loading: householdLoading } = useHousehold();
   const [settings, setSettings] = useState(() => loadSettings());
   const [categories, setCategories] = useState(() => loadCategories());
   const [categoryBudgets, setCategoryBudgets] = useState(() => loadCategoryBudgets());
@@ -270,8 +276,9 @@ function App() {
   };
 
   useEffect(() => {
+    if (!authUser || !householdId) return;
     void refreshTransactions();
-  }, []);
+  }, [authUser, householdId]);
 
   useEffect(() => {
     if (startBalance === null) return;
@@ -1027,6 +1034,13 @@ function App() {
     onExport={() => { try { exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } }}
     onRestartOnboarding={() => setSettings({ ...settings, onboardingComplete: false })}
     onManageCategories={() => setIsCategoryManagerOpen(true)}
+    onSignOut={async () => {
+      const { error } = await signOut();
+      if (error) {
+        console.error(error);
+        setStatus('Не удалось выйти из аккаунта');
+      }
+    }}
   />;
 
   const renderCategoryLimitSheet = () => {
@@ -1067,6 +1081,22 @@ function App() {
       })}
     </nav>
   );
+
+  if (authLoading) {
+    return <main className="auth-loading-shell"><div className="card auth-loading-card"><div className="loading-spinner" /><p>Проверяем вход…</p></div></main>;
+  }
+
+  if (!session) {
+    return <AuthPage />;
+  }
+
+  if (householdLoading) {
+    return <main className="auth-loading-shell"><div className="card auth-loading-card"><div className="loading-spinner" /><p>Открываем семейный бюджет…</p></div></main>;
+  }
+
+  if (!householdId) {
+    return <HouseholdSetupPage />;
+  }
 
   if (!settings.onboardingComplete) {
     return renderWelcome();

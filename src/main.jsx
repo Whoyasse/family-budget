@@ -1,6 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { AuthProvider } from './contexts/AuthContext';
+import { HouseholdProvider } from './contexts/HouseholdContext';
 import './styles.css';
 
 if ('serviceWorker' in navigator) {
@@ -13,6 +15,10 @@ if ('serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <AuthProvider>
+      <HouseholdProvider>
+        <App />
+      </HouseholdProvider>
+    </AuthProvider>
   </React.StrictMode>
 );
