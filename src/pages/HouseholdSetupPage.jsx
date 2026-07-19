@@ -3,7 +3,7 @@ import { useHousehold } from '../contexts/HouseholdContext';
 import { supabase } from '../lib/supabase';
 
 function HouseholdSetupPage() {
-  const { refreshHousehold } = useHousehold();
+  const { refreshHousehold, markHouseholdCreated } = useHousehold();
   const [name, setName] = useState('Моя семья');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -21,6 +21,7 @@ function HouseholdSetupPage() {
     try {
       const { data, error: rpcError } = await supabase.rpc('create_household', { household_name: householdName });
       if (rpcError || !data) throw rpcError || new Error('Не удалось создать семью.');
+      markHouseholdCreated();
       await refreshHousehold();
     } catch (requestError) {
       console.error(requestError);

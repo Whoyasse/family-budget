@@ -676,8 +676,8 @@ button.category-row {
 .danger { color: #fb9b90; }
 .settings-wide-btn { width: 100%; }
 .onboarding-shell { min-height: 100vh; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at top, #153225 0%, #07110d 55%, #03070a 100%); }
-.onboarding-card { width: min(100%, 460px); display: grid; gap: 20px; padding: 24px; }
-.onboarding-step { display: grid; gap: 14px; }
+.onboarding-card { width: min(100%, 460px); height: clamp(440px, 64dvh, 620px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 20px; padding: 24px; }
+.onboarding-step { display: grid; align-content: start; min-height: 0; gap: 14px; overflow-y: auto; padding-right: 2px; }
 .onboarding-step h2 { margin: 0; }
 .onboarding-actions { display: flex; justify-content: space-between; gap: 10px; }
 .onboarding-check { color: #cfeedd; }

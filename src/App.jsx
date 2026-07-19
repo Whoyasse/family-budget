@@ -163,7 +163,8 @@ function normalizeTransactions(payload) {
 
 function App() {
   const { session, authUser, loading: authLoading, signOut } = useAuth();
-  const { householdId, loading: householdLoading } = useHousehold();
+  const { householdId, loading: householdLoading, createdHousehold } = useHousehold();
+  const [onboardingRequested, setOnboardingRequested] = useState(false);
   const [settings, setSettings] = useState(() => loadSettings());
   const [categories, setCategories] = useState(() => loadCategories());
   const [categoryBudgets, setCategoryBudgets] = useState(() => loadCategoryBudgets());
@@ -722,6 +723,7 @@ function App() {
     setStartBalance(balance);
     setCategories(onboardingCategories);
     setSettings({ ...settings, baseCurrency, currency, users, onboardingComplete: true });
+    setOnboardingRequested(false);
     setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
   }} />;
 
@@ -1032,7 +1034,7 @@ function App() {
     }}
     onStatus={setStatus}
     onExport={() => { try { exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } }}
-    onRestartOnboarding={() => setSettings({ ...settings, onboardingComplete: false })}
+    onRestartOnboarding={() => { setOnboardingRequested(true); setSettings({ ...settings, onboardingComplete: false }); }}
     onManageCategories={() => setIsCategoryManagerOpen(true)}
     onSignOut={async () => {
       const { error } = await signOut();
@@ -1098,7 +1100,7 @@ function App() {
     return <HouseholdSetupPage />;
   }
 
-  if (!settings.onboardingComplete) {
+  if (onboardingRequested || (!settings.onboardingComplete && createdHousehold)) {
     return renderWelcome();
   }
 
