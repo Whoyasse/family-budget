@@ -450,6 +450,7 @@ h4 {
   color: var(--theme-text) !important;
   font-size: .88rem;
   line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .progress-row {
@@ -1926,7 +1927,9 @@ button.category-row,
 }
 
 .sheet-backdrop {
-  background: color-mix(in srgb, var(--theme-text) 38%, transparent) !important;
+  background: rgba(3, 8, 9, 0.62) !important;
+  backdrop-filter: blur(5px) !important;
+  -webkit-backdrop-filter: blur(5px) !important;
 }
 
 /* Every modal sheet is centered in one consistent safe area. */
