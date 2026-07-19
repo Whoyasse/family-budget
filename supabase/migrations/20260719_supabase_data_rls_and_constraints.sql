@@ -15,6 +15,8 @@ alter table public.transactions
   add column if not exists type text,
   add column if not exists amount numeric,
   add column if not exists comment text not null default '',
+  add column if not exists transaction_date date,
+  add column if not exists transaction_time time,
   add column if not exists occurred_at timestamptz not null default now();
 
 alter table public.categories

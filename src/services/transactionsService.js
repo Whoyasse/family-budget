@@ -3,6 +3,15 @@ import { throwSupabaseError } from './supabaseError';
 
 const toDatabaseType = (type) => type === 'Расход' ? 'expense' : 'income';
 const toDisplayType = (type) => type === 'expense' ? 'Расход' : type === 'income' ? 'Доход' : type;
+const transactionDateFields = (occurredAt) => {
+  const date = new Date(occurredAt);
+  const pad = (value) => String(value).padStart(2, '0');
+  return {
+    occurred_at: date.toISOString(),
+    transaction_date: `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`,
+    transaction_time: `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+  };
+};
 
 const mapTransaction = (row) => {
   const occurredAt = new Date(row.occurred_at);
@@ -14,12 +23,12 @@ export async function loadTransactions(householdId) {
   return (data || []).map(mapTransaction);
 }
 export async function createTransaction(householdId, payload) {
-  const { data, error } = await supabase.from('transactions').insert({ household_id: householdId, budget_user_id: payload.userId, category_id: payload.categoryId, type: toDatabaseType(payload.type), amount: payload.amount, comment: payload.comment || '', occurred_at: payload.occurredAt }).select('id,type,amount,comment,occurred_at,budget_users(name),categories(name)').single();
+  const { data, error } = await supabase.from('transactions').insert({ household_id: householdId, budget_user_id: payload.userId, category_id: payload.categoryId, type: toDatabaseType(payload.type), amount: payload.amount, comment: payload.comment || '', ...transactionDateFields(payload.occurredAt) }).select('id,type,amount,comment,occurred_at,budget_users(name),categories(name)').single();
   if (error) throwSupabaseError(error, 'transactions.create');
   return mapTransaction(data);
 }
 export async function updateTransaction(householdId, id, payload) {
-  const { data, error } = await supabase.from('transactions').update({ budget_user_id: payload.userId, category_id: payload.categoryId, type: toDatabaseType(payload.type), amount: payload.amount, comment: payload.comment || '', occurred_at: payload.occurredAt }).eq('id', id).eq('household_id', householdId).select('id,type,amount,comment,occurred_at,budget_users(name),categories(name)').single();
+  const { data, error } = await supabase.from('transactions').update({ budget_user_id: payload.userId, category_id: payload.categoryId, type: toDatabaseType(payload.type), amount: payload.amount, comment: payload.comment || '', ...transactionDateFields(payload.occurredAt) }).eq('id', id).eq('household_id', householdId).select('id,type,amount,comment,occurred_at,budget_users(name),categories(name)').single();
   if (error) throwSupabaseError(error, 'transactions.update');
   return mapTransaction(data);
 }
