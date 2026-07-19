@@ -28,7 +28,7 @@ export function calculateExpenseBreakdown(transactions) {
 
 export function calculateMonthlyTotals(transactions) {
   const grouped = transactions.reduce((acc, transaction) => {
-    const monthKey = transaction.date ? `${new Date(transaction.date).getFullYear()}-${String(new Date(transaction.date).getMonth() + 1).padStart(2, '0')}` : '';
+    const monthKey = getMonthKey(transaction.date);
     if (!monthKey) return acc;
     if (!acc[monthKey]) {
       acc[monthKey] = { income: 0, expense: 0 };
@@ -44,3 +44,4 @@ export function calculateMonthlyTotals(transactions) {
 
   return Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0]));
 }
+import { getMonthKey } from './date.js';

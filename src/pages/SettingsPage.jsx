@@ -1,19 +1,24 @@
-function SettingsPage() {
-  return (
-    <div className="screen">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Скоро</p>
-          <h2>Настройки</h2>
-        </div>
-      </header>
+import { useState } from 'react';
+import { ACCENTS, THEMES } from '../utils/settingsStorage';
+import { AVATARS } from '../components/OnboardingWizard';
 
-      <section className="card placeholder-card">
-        <h3>Настройки</h3>
-        <p>Здесь появятся персональные настройки и предпочтения приложения.</p>
-      </section>
-    </div>
-  );
+function SettingsPage({ startBalance, exchangeRate, onSaveBalance, settings, onSettingsChange, transactions, onDeleteUser, onExport, onRestartOnboarding, onStatus, onManageCategories }) {
+  const [balanceInput, setBalanceInput] = useState(String((startBalance ?? 0) * (exchangeRate || 1)));
+  const [editingUserId, setEditingUserId] = useState(null);
+  const [draftUser, setDraftUser] = useState(null);
+  const saveUser = () => { if (!draftUser?.name.trim()) return; const name = draftUser.name.trim(); const deletedNames = { ...settings.deletedNames }; delete deletedNames[name]; onSettingsChange({ ...settings, deletedNames, users: settings.users.map((user) => user.id === draftUser.id ? { ...draftUser, name, previousNames: Array.from(new Set([...(user.previousNames || user.legacyNames || []), user.name, name])), legacyNames: Array.from(new Set([...(user.previousNames || user.legacyNames || []), user.name, name])) } : user) }); setEditingUserId(null); };
+  const addUser = () => { const user = { id: `user-${Date.now()}`, name: 'Новый пользователь', avatar: '🧑', previousNames: ['Новый пользователь'], legacyNames: ['Новый пользователь'], archived: false, createdAt: new Date().toISOString() }; const deletedNames = { ...settings.deletedNames }; delete deletedNames[user.name]; onSettingsChange({ ...settings, deletedNames, users: [...settings.users, user] }); setDraftUser(user); setEditingUserId(user.id); };
+  const deleteUser = (user) => onDeleteUser(user);
+  return <div className="screen settings-screen"><header className="topbar"><div><p className="eyebrow">Профиль и приложение</p><h2>Настройки</h2></div></header>
+    <section className="card settings-section"><div className="section-title"><h4>Начальный баланс</h4></div><form className="settings-inline-form" onSubmit={(event) => { event.preventDefault(); onSaveBalance((Number(String(balanceInput).replace(',', '.')) || 0) / (exchangeRate || 1)); }}><input type="number" inputMode="decimal" value={balanceInput} onChange={(event) => setBalanceInput(event.target.value)} /><button className="primary-btn" disabled={!exchangeRate}>Сохранить</button></form></section>
+    <section className="card settings-section"><div className="section-title"><h4>Валюта</h4></div><div className="choice-grid currency-grid">{['EUR', 'USD', 'RUB', 'PLN', 'UAH'].map((currency) => <button key={currency} type="button" className={settings.currency === currency ? 'active' : ''} onClick={() => onSettingsChange({ ...settings, currency })}>{currency}</button>)}</div></section>
+    <section className="card settings-section"><div className="section-title"><h4>Учётная валюта</h4></div><p className="muted">В этой валюте суммы хранятся в таблице. Отображение можно менять отдельно.</p><div className="choice-grid currency-grid">{['EUR', 'USD', 'RUB', 'PLN', 'UAH'].map((currency) => <button key={currency} type="button" className={settings.baseCurrency === currency ? 'active' : ''} onClick={() => { if (currency === settings.baseCurrency || window.confirm(`Считать все существующие суммы валютой ${currency}? Это не пересчитывает таблицу.`)) onSettingsChange({ ...settings, baseCurrency: currency }); }}>{currency}</button>)}</div></section>
+    <section className="card settings-section"><div className="section-title"><h4>Акцент</h4></div><div className="accent-grid">{Object.entries(ACCENTS).map(([id, accent]) => <button key={id} type="button" className={settings.accent === id ? 'active' : ''} onClick={() => onSettingsChange({ ...settings, accent: id })}><i style={{ background: accent.primary }} />{accent.label}</button>)}<label className={`custom-accent-picker ${settings.accent === 'custom' ? 'active' : ''}`}><i className="color-wheel" /><span>Свой цвет</span><input aria-label="Выбрать свой акцент" type="color" value={settings.customAccent || '#2fcf72'} onChange={(event) => onSettingsChange({ ...settings, accent: 'custom', customAccent: event.target.value })} /></label></div></section>
+    <section className="card settings-section"><div className="section-title"><h4>Тема</h4></div><div className="choice-grid theme-grid">{Object.entries(THEMES).map(([id, theme]) => <button key={id} type="button" className={settings.theme === id ? 'active' : ''} onClick={() => onSettingsChange({ ...settings, theme: id })}>{id === 'dark' ? '🌙' : '☀️'} {theme.label}</button>)}</div></section>
+    <section className="card settings-section"><div className="section-title"><h4>Пользователи</h4><button className="text-action" type="button" onClick={addUser}>Добавить</button></div><div className="settings-users">{settings.users.map((user) => <div className="settings-user" key={user.id}>{editingUserId === user.id ? <><input value={draftUser?.name ?? user.name} onChange={(event) => setDraftUser({ ...(draftUser || user), name: event.target.value })} /><div className="avatar-picker compact">{AVATARS.map((avatar) => <button key={avatar} type="button" className={(draftUser?.avatar ?? user.avatar) === avatar ? 'active' : ''} onClick={() => setDraftUser({ ...(draftUser || user), avatar })}>{avatar}</button>)}</div><button className="primary-btn" type="button" onClick={saveUser}>Готово</button></> : <><span className="settings-user-avatar">{user.avatar}</span><strong>{user.name}</strong><button className="text-action" type="button" onClick={() => { setDraftUser(user); setEditingUserId(user.id); }}>Изменить</button><button className="text-action danger" type="button" onClick={() => deleteUser(user)}>Удалить</button></>}</div>)}</div></section>
+    <section className="card settings-section"><div className="section-title"><h4>Категории</h4></div><button className="primary-btn settings-wide-btn" type="button" onClick={onManageCategories}>Управление категориями</button></section>
+    <section className="card settings-section"><h4>Данные</h4><button className="primary-btn settings-wide-btn" type="button" onClick={onExport}>Экспорт в Excel</button><button className="text-action" type="button" onClick={() => { if (window.confirm('Перезапустить первоначальную настройку?')) onRestartOnboarding(); }}>Пройти настройку заново</button></section>
+  </div>;
 }
 
 export default SettingsPage;

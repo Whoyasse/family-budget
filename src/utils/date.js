@@ -6,22 +6,22 @@ export function parseDate(value) {
   const normalized = String(value).trim();
   if (!normalized) return null;
 
-  const direct = new Date(normalized);
-  if (!Number.isNaN(direct.getTime())) {
-    return direct;
+  const iso = normalized.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (iso) {
+    const [, year, month, day] = iso;
+    return new Date(Number(year), Number(month) - 1, Number(day));
   }
 
-  const parts = normalized.match(/(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/);
+  const parts = normalized.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})/);
   if (parts) {
     const [, day, month, year] = parts;
     const fullYear = year.length === 2 ? 2000 + Number(year) : Number(year);
     return new Date(fullYear, Number(month) - 1, Number(day));
   }
 
-  const iso = normalized.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
-  if (iso) {
-    const [, year, month, day] = iso;
-    return new Date(Number(year), Number(month) - 1, Number(day));
+  const direct = new Date(normalized);
+  if (!Number.isNaN(direct.getTime())) {
+    return direct;
   }
 
   return null;

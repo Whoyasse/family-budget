@@ -1,6 +1,6 @@
 export const calendarHeatColors = {
   base: 'rgba(255, 255, 255, 0.04)',
-  green: 'rgba(49, 201, 109, 0.20)',
+  green: 'var(--accent-soft)',
   yellow: 'rgba(255, 199, 76, 0.28)',
   orange: 'rgba(255, 143, 77, 0.32)',
   red: 'rgba(255, 99, 99, 0.38)'

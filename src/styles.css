@@ -1,4 +1,17 @@
 :root {
+  --accent-primary: #31c96d;
+  --accent-bright: #78f0a5;
+  --accent-soft: rgba(49, 201, 109, 0.16);
+  --accent-contrast: #ffffff;
+  --theme-bg-top: #153225;
+  --theme-bg-mid: #07110d;
+  --theme-bg-bottom: #03070a;
+  --theme-surface: #09141a;
+  --theme-surface-raised: #12211d;
+  --theme-border: rgba(123, 242, 162, 0.2);
+  --theme-muted: #9fb4a8;
+  --theme-text: #f8faf8;
+  --theme-shadow: rgba(0, 0, 0, 0.24);
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -39,7 +52,7 @@ select {
 
 .app-shell {
   min-height: 100vh;
-  padding: 18px 16px 96px;
+  padding: 18px 16px 132px;
   display: flex;
   justify-content: center;
   width: 100%;
@@ -180,11 +193,14 @@ h4 {
 }
 
 .summary-card strong {
-  font-size: 1.15rem;
+  display: block;
+  font-size: clamp(0.92rem, 4vw, 1.15rem);
+  white-space: nowrap;
+  letter-spacing: -0.02em;
 }
 
 .summary-card.income {
-  color: #8df3b2;
+  color: var(--accent-primary);
 }
 
 .summary-card.expense {
@@ -227,6 +243,113 @@ h4 {
   gap: 6px;
 }
 
+.history-filters {
+  display: grid;
+  gap: 10px;
+}
+
+.history-filter-toggle {
+  width: 100%;
+  border: 1px solid var(--theme-border);
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: var(--theme-surface-raised);
+  color: var(--theme-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.history-filter-toggle.active {
+  border-color: var(--accent-primary);
+  color: var(--accent-bright);
+}
+
+.history-filter-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.history-filter-panel__wide,
+.history-filter-panel__clear {
+  grid-column: 1 / -1;
+}
+
+.history-filter-panel select,
+.history-filter-panel input {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--theme-border);
+  border-radius: 12px;
+  padding: 10px;
+  background: var(--theme-surface-raised);
+  color: var(--theme-text);
+}
+
+.history-filter-panel select:focus,
+.history-filter-panel input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.history-amount-filter {
+  display: grid;
+  gap: 6px;
+}
+
+.history-amount-filter > span {
+  font-size: 0.95rem;
+  color: var(--theme-muted);
+}
+
+.history-amount-filter > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.history-amount-filter input {
+  min-width: 0;
+  border: 1px solid var(--theme-border);
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: var(--theme-surface-raised);
+  color: var(--theme-text);
+}
+
+.history-amount-filter input:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+}
+
+.budget-row small {
+  display: block;
+  margin: 2px 0 7px;
+  color: var(--theme-muted);
+  text-align: left;
+}
+
+.budget-row.is-warning .progress-fill { background: #f59e0b !important; }
+.budget-row.is-exceeded .progress-fill { background: #fb7185 !important; }
+.budget-row.is-exceeded small { color: #fb7185; }
+
+.category-limit-sheet { display: grid; gap: 12px; padding: 16px; }
+.category-manager-sheet { display: grid; gap: 12px; padding: 16px; max-height: calc(100dvh - 48px); overflow-y: auto; }
+.category-manager-hint { margin: -2px 0 2px; color: var(--theme-muted); font-size: .78rem; }
+.category-manager-list-row { min-height: 62px; padding: 0 !important; gap: 0; border: 1px solid var(--theme-border) !important; border-radius: 14px; overflow: hidden; }
+.category-manager-row { display: flex; align-items: center; flex: 1; min-height: 60px; gap: 10px; padding: 10px 12px; border: 0; background: transparent; color: var(--theme-text); text-align: left; }
+.category-manager-row > div { min-width: 0; }
+.category-manager-row p { color: var(--theme-muted); font-size: .82rem; }
+.category-delete-button { width: 52px; min-height: 60px; border: 0; border-left: 1px solid var(--theme-border); background: color-mix(in srgb, #fb7185 12%, var(--theme-surface)); color: #fb7185; font-size: 1.05rem; cursor: pointer; }
+.category-delete-button:hover, .category-delete-button:focus-visible { background: color-mix(in srgb, #fb7185 22%, var(--theme-surface)); outline: none; }
+.icon-picker { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.icon-picker button { min-height: 44px; border: 1px solid var(--theme-border); border-radius: 12px; background: var(--theme-surface-raised); font-size: 1.25rem; }
+.icon-picker button.active { border-color: var(--accent-primary); box-shadow: 0 0 0 2px var(--accent-soft); }
+.limit-sheet-summary { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.limit-sheet-summary span { color: var(--theme-muted); font-size: .88rem; }
+.limit-exceeded { background: #fb7185 !important; }
+
 .field span {
   font-size: 0.95rem;
   color: #d9fce9;
@@ -251,12 +374,17 @@ h4 {
 }
 
 .primary-btn {
-  background: linear-gradient(135deg, #31c96d, #1f9d56);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-bright));
   color: white;
   padding: 13px 16px;
   border-radius: 16px;
   font-weight: 600;
   box-shadow: 0 10px 24px rgba(49, 201, 109, 0.24);
+}
+
+.primary-btn:active,
+.bottom-nav__add:active {
+  transform: scale(0.96);
 }
 
 .ghost-btn {
@@ -289,7 +417,7 @@ h4 {
 
 .segment-btn.active,
 .category-btn.active {
-  background: linear-gradient(135deg, #31c96d, #1f9d56);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-bright));
   color: white;
 }
 
@@ -317,8 +445,257 @@ h4 {
   font-size: 1.15rem;
 }
 
+.onboarding-card .category-btn strong {
+  display: block;
+  color: var(--theme-text) !important;
+  font-size: .88rem;
+  line-height: 1.2;
+}
+
 .progress-row {
   margin-top: 10px;
+}
+
+.category-link-row {
+  position: relative;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+}
+
+button.progress-row,
+button.legend-row,
+button.category-row {
+  width: 100%;
+  border: 1px solid rgba(123, 242, 162, 0.1);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(49, 201, 109, 0.035);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  appearance: none;
+}
+
+.category-link-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(123, 242, 162, 0.26);
+  background: rgba(49, 201, 109, 0.09);
+}
+
+.category-link-row:active {
+  transform: scale(0.985);
+}
+
+.category-analytics-screen {
+  gap: 12px;
+}
+
+.category-analytics-comparison {
+  display: grid;
+  gap: 6px;
+}
+
+.category-analytics-comparison strong {
+  font-size: 1.05rem;
+}
+
+.comparison-up {
+  color: #fb9b90;
+}
+
+.comparison-down {
+  color: #7bf2a2;
+}
+
+.category-analytics-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.category-analytics-summary-grid .summary-card:last-child {
+  grid-column: 1 / -1;
+}
+
+.category-averages-card {
+  display: grid;
+  gap: 12px;
+}
+
+.category-averages-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.category-averages-grid div {
+  min-width: 0;
+}
+
+.category-averages-grid span {
+  display: block;
+  color: #9fb4a8;
+  font-size: 0.78rem;
+}
+
+.category-averages-grid strong {
+  display: block;
+  margin-top: 3px;
+  font-size: clamp(0.82rem, 3.8vw, 1rem);
+}
+
+.category-trend-card {
+  padding-bottom: 10px;
+}
+
+.category-trend-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 6px;
+}
+
+.category-trend-chart__bar-bg {
+  fill: rgba(255, 255, 255, 0.05);
+}
+
+.category-trend-chart text {
+  fill: #839a8e;
+  font-size: 8px;
+  text-transform: uppercase;
+}
+
+.category-trend-chart text.selected {
+  fill: #8df3b2;
+  font-weight: 700;
+}
+
+.category-insights-card {
+  display: grid;
+  gap: 8px;
+}
+
+.category-insights-list {
+  display: grid;
+  gap: 10px;
+}
+
+.category-insights-list p {
+  display: grid;
+  gap: 3px;
+}
+
+.category-insights-list span {
+  color: #9fb4a8;
+  font-size: 0.86rem;
+}
+
+.all-time-summary-card,
+.all-time-category-card {
+  display: grid;
+  gap: 10px;
+}
+
+.all-time-summary-grid,
+.all-time-category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.all-time-summary-grid span,
+.all-time-category-grid span {
+  display: block;
+  color: #9fb4a8;
+  font-size: 0.76rem;
+}
+
+.all-time-summary-grid strong,
+.all-time-category-grid strong {
+  display: block;
+  margin-top: 4px;
+  font-size: clamp(0.82rem, 3.7vw, 1rem);
+}
+
+.all-categories-list {
+  gap: 8px;
+}
+
+.all-categories-meta {
+  min-width: 96px;
+}
+
+.all-categories-meta span {
+  color: #9fb4a8;
+  font-size: 0.76rem;
+  text-align: right;
+}
+
+.text-action {
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: #8df3b2;
+  font: inherit;
+  font-size: 0.86rem;
+  cursor: pointer;
+}
+
+.transaction-history-toggle {
+  margin: -2px 0 4px;
+}
+
+.settings-screen { gap: 12px; }
+.settings-section { display: grid; gap: 12px; }
+.settings-inline-form { display: flex; gap: 8px; }
+.settings-inline-form input, .onboarding-step input, .settings-user input { min-width: 0; flex: 1; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 11px 12px; background: rgba(255,255,255,.06); color: #f8faf8; }
+.choice-grid, .accent-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.choice-grid button, .accent-grid button { border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 10px 8px; background: rgba(255,255,255,.05); color: inherit; cursor: pointer; }
+.choice-grid button.active, .accent-grid button.active, .avatar-picker button.active { border-color: var(--accent-bright); background: var(--accent-soft); }
+.currency-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.accent-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.accent-grid button { display: flex; align-items: center; gap: 8px; }
+.accent-grid i { width: 16px; height: 16px; border-radius: 999px; }
+.custom-accent-picker { position: relative; display: flex; align-items: center; gap: 8px; min-height: 42px; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 10px 8px; background: rgba(255,255,255,.05); color: inherit; cursor: pointer; overflow: hidden; }
+.custom-accent-picker.active { border-color: var(--accent-bright); background: var(--accent-soft); }
+.custom-accent-picker .color-wheel { width: 16px; height: 16px; border-radius: 50%; background: conic-gradient(#f43f5e, #f59e0b, #eab308, #22c55e, #06b6d4, #3b82f6, #8b5cf6, #ec4899, #f43f5e); }
+.custom-accent-picker input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.settings-users { display: grid; gap: 10px; }
+.settings-user { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px; border-radius: 14px; background: rgba(255,255,255,.035); }
+.settings-user-avatar { font-size: 1.45rem; }
+.settings-user strong { margin-right: auto; }
+.settings-user input { min-width: 120px; }
+.avatar-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+.avatar-picker button { border: 1px solid transparent; border-radius: 10px; padding: 6px; background: rgba(255,255,255,.06); font-size: 1.15rem; cursor: pointer; }
+.avatar-picker.compact { width: 100%; }
+.danger { color: #fb9b90; }
+.settings-wide-btn { width: 100%; }
+.onboarding-shell { min-height: 100vh; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at top, #153225 0%, #07110d 55%, #03070a 100%); }
+.onboarding-card { width: min(100%, 460px); display: grid; gap: 20px; padding: 24px; }
+.onboarding-step { display: grid; gap: 14px; }
+.onboarding-step h2 { margin: 0; }
+.onboarding-actions { display: flex; justify-content: space-between; gap: 10px; }
+.onboarding-check { color: #cfeedd; }
+
+/* Accent overrides keep every interactive surface in sync with Settings. */
+.bottom-nav__add,
+.wizard-progress span,
+.category-btn.active,
+.segment-btn.active {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-bright));
+}
+
+.bottom-nav__item.active,
+.analytics-tab.active,
+.journal-tab.active {
+  color: var(--accent-bright);
+  background: var(--accent-soft);
+}
+
+.wizard-choice.active,
+.category-link-row:hover {
+  border-color: var(--accent-bright);
+  background-color: var(--accent-soft);
 }
 
 .progress-bar {
@@ -340,6 +717,22 @@ h4 {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.transactions-toggle {
+  width: 100%;
+  border: 1px solid rgba(120, 240, 165, 0.22);
+  border-radius: 14px;
+  padding: 11px 14px;
+  background: rgba(49, 201, 109, 0.08);
+  color: #8df3b2;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.transactions-toggle:hover {
+  background: rgba(49, 201, 109, 0.14);
 }
 
 .transaction-item,
@@ -447,7 +840,7 @@ h4 {
 }
 
 .amount.positive {
-  color: #8df3b2;
+  color: var(--accent-primary);
 }
 
 .amount.negative {
@@ -614,6 +1007,206 @@ h4 {
   animation: sheetIn 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.wizard-sheet {
+  height: clamp(440px, 62vh, 650px);
+  max-height: calc(100dvh - 16px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.wizard-backdrop {
+  align-items: center;
+  padding: 10px;
+}
+
+.wizard-sheet--step-3 {
+  height: clamp(520px, 70vh, 740px);
+}
+
+.wizard-sheet--step-4,
+.wizard-sheet--step-5 {
+  height: clamp(440px, 58vh, 610px);
+}
+
+.wizard-header {
+  flex-shrink: 0;
+}
+
+.wizard-header strong {
+  display: block;
+  margin-top: 3px;
+}
+
+.wizard-progress {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.wizard-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-bright));
+  transition: width 200ms ease;
+}
+
+.wizard-form {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding-top: 12px;
+}
+
+.wizard-back {
+  align-self: flex-start;
+  border: 0;
+  padding: 5px 0;
+  margin-bottom: 8px;
+  background: transparent;
+  color: #9fd8b7;
+  font: inherit;
+  cursor: pointer;
+}
+
+.wizard-step {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+  padding: 2px 2px 4px;
+}
+
+.wizard-sheet--step-1 .wizard-step,
+.wizard-sheet--step-2 .wizard-step,
+.wizard-sheet--step-4 .wizard-step,
+.wizard-sheet--step-5 .wizard-step {
+  justify-content: center;
+  overflow-y: visible;
+}
+
+.wizard-step h3 {
+  font-size: clamp(1.35rem, 6vw, 1.75rem);
+  line-height: 1.15;
+}
+
+.wizard-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  max-width: 390px;
+  margin-inline: auto;
+}
+
+.wizard-choice {
+  min-height: 132px;
+  border: 1px solid rgba(123, 242, 162, 0.12);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--theme-text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.wizard-choice.active {
+  border-color: rgba(123, 242, 162, 0.5);
+  background: linear-gradient(135deg, rgba(49, 201, 109, 0.28), rgba(31, 157, 86, 0.34));
+  box-shadow: 0 12px 30px rgba(49, 201, 109, 0.12);
+}
+
+.wizard-choice__icon {
+  font-size: 2rem;
+}
+
+.wizard-category-grid {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+  align-content: start;
+  width: 100%;
+  max-width: 420px;
+  margin-inline: auto;
+}
+
+.wizard-amount-step {
+  justify-content: center;
+}
+
+.wizard-amount-field input {
+  width: 100%;
+  padding: 18px 16px;
+  font-size: clamp(2rem, 12vw, 3.4rem);
+  font-weight: 750;
+  text-align: center;
+}
+
+.wizard-primary {
+  width: 100%;
+  max-width: 390px;
+  margin-inline: auto;
+}
+
+.wizard-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.receipt-placeholder-btn {
+  width: 100%;
+  border: 1px dashed rgba(123, 242, 162, 0.34);
+  border-radius: 16px;
+  padding: 14px 16px;
+  background: rgba(49, 201, 109, 0.06);
+  color: #b9e9cc;
+  font: inherit;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+  max-width: 390px;
+  margin-inline: auto;
+}
+
+.wizard-step small {
+  color: #8ea89b;
+  font-size: 0.8rem;
+}
+
+.wizard-sheet--step-4 .wizard-step h3,
+.wizard-sheet--step-5 .wizard-step h3,
+.wizard-sheet--step-4 .wizard-amount-field,
+.wizard-sheet--step-5 .field {
+  width: 100%;
+  max-width: 390px;
+  margin-inline: auto;
+}
+
+@media (max-height: 700px) {
+  .wizard-sheet,
+  .wizard-sheet--step-3,
+  .wizard-sheet--step-4,
+  .wizard-sheet--step-5 {
+    height: min(70vh, calc(100dvh - 8px));
+    min-height: 410px;
+  }
+
+  .wizard-choice {
+    min-height: 108px;
+  }
+}
+
 .sheet-handle {
   width: 42px;
   height: 4px;
@@ -681,9 +1274,9 @@ h4 {
   left: 50%;
   bottom: 14px;
   transform: translateX(-50%);
-  width: min(100%, 440px);
+  width: min(100%, 400px);
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   gap: 6px;
   padding: 10px 12px 12px;
@@ -727,15 +1320,15 @@ h4 {
 }
 
 .bottom-nav__add {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  margin-top: -8px;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  margin-top: 0;
   margin-left: auto;
   margin-right: auto;
   justify-self: center;
   background: linear-gradient(135deg, #31c96d, #1f9d56);
-  color: white;
+  color: var(--accent-contrast);
   font-size: 1.35rem;
   box-shadow: 0 12px 28px rgba(49, 201, 109, 0.28);
   display: flex;
@@ -750,6 +1343,241 @@ h4 {
   flex-direction: column;
   justify-content: center;
   gap: 8px;
+}
+
+.analytics-screen {
+  gap: 12px;
+}
+
+.analytics-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+
+.analytics-tab {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #cfeedd;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+  font-size: 0.9rem;
+}
+
+.analytics-tab.active {
+  background: linear-gradient(135deg, rgba(49, 201, 109, 0.24), rgba(123, 242, 162, 0.16));
+  color: #8df3b2;
+}
+
+.analytics-stack {
+  gap: 12px;
+}
+
+.analytics-card {
+  padding: 16px;
+}
+
+.analytics-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.analytics-summary-grid .summary-card {
+  min-width: 0;
+  padding-inline: 8px;
+}
+
+.chart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 180px) 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.chart-shell {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  display: grid;
+  place-items: center;
+}
+
+.donut-chart {
+  width: 100%;
+  height: 100%;
+}
+
+.chart-center {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+}
+
+.chart-center strong {
+  font-size: 1rem;
+}
+
+.chart-center span {
+  font-size: 0.8rem;
+  color: #9fb4a8;
+}
+
+.chart-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.legend-row:last-child {
+  border-bottom: none;
+}
+
+.legend-marker {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.legend-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.legend-label span {
+  color: var(--theme-text);
+  font-size: 0.92rem;
+}
+
+.legend-label small {
+  color: #9fb4a8;
+  font-size: 0.8rem;
+}
+
+.category-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.category-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.category-row:last-child {
+  border-bottom: none;
+}
+
+.category-row.is-smoking {
+  background: rgba(123, 242, 162, 0.06);
+  border-radius: 14px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.category-row__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.category-icon {
+  font-size: 1.2rem;
+}
+
+.category-row__main p {
+  color: #9fb4a8;
+  font-size: 0.9rem;
+}
+
+.category-row__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 88px;
+  align-items: flex-end;
+}
+
+.category-row__meta span {
+  font-size: 0.86rem;
+  color: #8df3b2;
+}
+
+.category-progress {
+  width: 88px;
+}
+
+.empty-state {
+  padding: 20px 6px 6px;
+  color: #9fb4a8;
+  text-align: center;
+}
+
+.insight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.insight-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.insight-card__title h4 {
+  color: #f8faf8;
+}
+
+.empty-health-card {
+  min-height: 180px;
+  justify-content: center;
+}
+
+.journal-screen {
+  gap: 12px;
+}
+
+.journal-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+}
+
+.journal-tab {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #cfeedd;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+
+.journal-tab.active {
+  background: linear-gradient(135deg, rgba(49, 201, 109, 0.24), rgba(123, 242, 162, 0.18));
+  color: #8df3b2;
 }
 
 .placeholder-card p {
@@ -836,6 +1664,368 @@ h4 {
   background: linear-gradient(135deg, rgba(49, 201, 109, 0.18), rgba(255, 255, 255, 0.04));
 }
 
+/* Keep every legacy accent surface connected to the selected theme. */
+.hero-orb,
+.category-link-row:hover,
+.calendar-day:hover,
+.calendar-day.has-expenses,
+.category-row.is-smoking,
+.transactions-toggle,
+.receipt-placeholder-btn {
+  background: var(--accent-soft) !important;
+}
+
+.field input:focus,
+.sheet-card,
+.wizard-choice,
+.receipt-placeholder-btn,
+.calendar-day:hover,
+.calendar-day.is-today,
+.category-link-row:hover {
+  border-color: var(--accent-bright) !important;
+}
+
+.primary-btn,
+.bottom-nav__add,
+.segment-btn.active,
+.category-btn.active,
+.wizard-progress span,
+.progress-fill {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-bright)) !important;
+  box-shadow: 0 10px 24px var(--accent-soft) !important;
+}
+
+.primary-btn,
+.bottom-nav__add,
+.segment-btn.active,
+.category-btn.active {
+  color: var(--accent-contrast) !important;
+}
+
+.bottom-nav__item.active,
+.analytics-tab.active,
+.journal-tab.active,
+.wizard-choice.active {
+  color: var(--accent-bright) !important;
+  background: var(--accent-soft) !important;
+  border-color: var(--accent-bright) !important;
+}
+
+/* Full theme palette: financial gain/loss colors intentionally stay semantic. */
+:root,
+body,
+.onboarding-shell {
+  background: radial-gradient(circle at top, var(--theme-bg-top) 0%, var(--theme-bg-mid) 48%, var(--theme-bg-bottom) 100%) !important;
+}
+
+.app-shell,
+.screen {
+  background: transparent;
+}
+
+.card,
+.bottom-nav,
+.sheet-card,
+.wizard-sheet,
+.category-btn,
+.wizard-choice,
+.settings-user,
+.calendar-day,
+.pill-select select,
+.field input,
+.budget-edit-form input,
+.settings-inline-form input,
+.onboarding-step input {
+  background-color: var(--theme-surface) !important;
+  border-color: var(--theme-border) !important;
+}
+
+.balance-card,
+.hero-card,
+.wizard-choice.active,
+.calendar-day.has-expenses,
+.bottom-nav__item.active,
+.analytics-tab.active,
+.journal-tab.active {
+  background: linear-gradient(135deg, var(--theme-surface-raised), var(--theme-surface)) !important;
+}
+
+.eyebrow,
+.balance-caption,
+.muted,
+.transaction-item p,
+.stat-item p,
+.legend-label small,
+.category-row__main p,
+.all-categories-meta span,
+.detail-row span,
+.chart-center span {
+  color: var(--theme-muted) !important;
+}
+
+.eyebrow,
+.section-title > span,
+.text-action,
+.bottom-nav__item.active,
+.analytics-tab.active,
+.journal-tab.active {
+  color: var(--accent-bright) !important;
+}
+
+.progress-bar,
+.category-trend-chart__bar-bg {
+  background-color: color-mix(in srgb, var(--theme-muted) 18%, transparent) !important;
+  fill: color-mix(in srgb, var(--theme-muted) 18%, transparent) !important;
+}
+
+/* Neutral information stays neutral; the accent is reserved for navigation and selection. */
+.balance-card h3,
+.transactions-toggle,
+.home-expense-heading > span,
+.weekday-label {
+  color: var(--theme-text) !important;
+}
+
+.category-row__meta > span,
+.category-percent {
+  color: var(--accent-bright) !important;
+}
+
+:root,
+body,
+button,
+input,
+select {
+  color: var(--theme-text);
+}
+
+.card {
+  box-shadow: 0 18px 40px var(--theme-shadow) !important;
+}
+
+.calendar-day,
+.category-btn,
+.wizard-choice,
+.settings-user,
+.choice-grid button,
+.accent-grid button,
+.journal-tab,
+.analytics-tab,
+.ghost-btn,
+.pill-select select,
+.field input,
+.settings-inline-form input,
+.onboarding-step input {
+  color: var(--theme-text) !important;
+}
+
+/* Accent is a complete visual language: icons, navigation and the background follow it. */
+.balance-card::before {
+  background: radial-gradient(circle, var(--accent-soft), transparent 70%) !important;
+}
+
+.balance-change { margin-top: 4px; font-size: .86rem; font-weight: 600; }
+.balance-card--interactive { cursor: pointer; }
+.balance-period-control { display: flex; gap: 6px; margin: 12px 0 6px; }
+.balance-period-control button { flex: 1; border: 0; border-radius: 10px; padding: 6px 4px; background: color-mix(in srgb, var(--theme-text) 7%, transparent); color: var(--theme-muted); font-size: .72rem; }
+.balance-period-control button.active { background: var(--accent-soft); color: var(--accent-bright); }
+.balance-sparkline { display: block; width: 100%; height: 58px; overflow: visible; }
+.balance-detail-chart .balance-sparkline { height: 210px; margin-top: 12px; }
+.latest-operations-count { margin: -5px 0 10px; color: var(--theme-muted); font-size: .82rem; }
+.category-operation-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.category-operation-stats .summary-card { min-height: 86px; }
+.category-operation-stats strong { font-size: .86rem; overflow-wrap: anywhere; }
+
+.transaction-icon {
+  background: var(--accent-soft) !important;
+  color: var(--accent-bright) !important;
+}
+
+.bottom-nav__item {
+  color: var(--accent-bright) !important;
+}
+
+.bottom-nav__item.active {
+  color: var(--accent-bright) !important;
+  background: var(--accent-soft) !important;
+}
+
+/* Decorative highlights must use the selected accent, never the former green palette. */
+h3,
+.detail-hero h3,
+.detail-hero__icon,
+.calendar-day__today-mark,
+.calendar-badge--more,
+.category-trend-chart text.selected,
+.comparison-down {
+  color: var(--accent-primary) !important;
+}
+
+.detail-hero__icon,
+.calendar-badge,
+.hero-badge,
+.receipt-placeholder-btn,
+.detail-placeholder {
+  background-color: var(--accent-soft) !important;
+  border-color: var(--theme-border) !important;
+}
+
+.detail-placeholder,
+.detail-placeholder *,
+.hero-badge {
+  color: var(--theme-muted) !important;
+}
+
+button.progress-row,
+button.legend-row,
+button.category-row,
+.category-row.is-smoking {
+  background: color-mix(in srgb, var(--accent-primary) 5%, var(--theme-surface)) !important;
+  border-color: color-mix(in srgb, var(--accent-primary) 14%, var(--theme-border)) !important;
+}
+
+.category-link-row:hover,
+.calendar-day:hover {
+  background: var(--accent-soft) !important;
+  border-color: var(--theme-border) !important;
+}
+
+.calendar-day.has-expenses {
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--theme-surface)) !important;
+}
+
+.calendar-day.is-today {
+  border-color: var(--accent-primary) !important;
+  box-shadow: inset 0 0 0 1px var(--accent-soft) !important;
+}
+
+.pill-select,
+.field > span,
+.loading,
+.transaction-comment,
+.transaction-meta p,
+.placeholder-card p,
+.category-averages-grid span,
+.category-insights-list span,
+.all-time-summary-grid span,
+.all-time-category-grid span,
+.category-trend-chart text {
+  color: var(--theme-muted) !important;
+}
+
+.toast {
+  background: var(--accent-primary) !important;
+}
+
+/* Sheets used a legacy dark gradient, so remove that image layer rather than only changing its color. */
+.sheet-card,
+.wizard-sheet {
+  background: var(--theme-surface) !important;
+  border-color: var(--theme-border) !important;
+  box-shadow: 0 24px 60px var(--theme-shadow) !important;
+}
+
+.sheet-backdrop {
+  background: color-mix(in srgb, var(--theme-text) 38%, transparent) !important;
+}
+
+/* Every modal sheet is centered in one consistent safe area. */
+.sheet-backdrop:not(.wizard-backdrop) {
+  align-items: center;
+  padding: 24px 12px;
+}
+
+.sheet-backdrop:not(.wizard-backdrop) > .sheet-card {
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.sheet-handle,
+.wizard-progress {
+  background: color-mix(in srgb, var(--theme-muted) 30%, transparent) !important;
+}
+
+.wizard-back,
+.wizard-step small {
+  color: var(--theme-muted) !important;
+}
+
+/* A selected category is identified by its outline, not by a solid accent fill. */
+.category-btn.active {
+  background: var(--theme-surface) !important;
+  color: var(--theme-text) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft) !important;
+}
+
+.receipt-placeholder-btn {
+  color: var(--theme-text) !important;
+}
+
+.wizard-primary:disabled {
+  background: color-mix(in srgb, var(--accent-primary) 18%, var(--theme-surface-raised)) !important;
+  color: var(--theme-text) !important;
+  opacity: 1;
+}
+
+.analytics-screen {
+  padding-bottom: 28px;
+}
+
+/* Keep the final analytics row clear of the card edge on every tab. */
+.analytics-card {
+  overflow: visible;
+}
+
+.analytics-card > .category-list:last-child {
+  padding-bottom: 8px;
+}
+
+.analytics-card .chart-legend {
+  padding-bottom: 8px;
+}
+
+/* The legacy list divider removed the bottom side of the final button.
+   Analytics rows are cards, so every side of the final row must remain drawn. */
+.analytics-card button.category-row:last-child,
+.analytics-card button.legend-row:last-child {
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-primary) 14%, var(--theme-border)) !important;
+}
+
+/* Make every category clearly tappable, then add a stronger response to hover or touch. */
+.wizard-category-grid .category-btn {
+  border: 1px solid var(--theme-border) !important;
+  background: color-mix(in srgb, var(--accent-primary) 4%, var(--theme-surface)) !important;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--theme-text) 8%, transparent) !important;
+  transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.wizard-category-grid .category-btn:hover,
+.wizard-category-grid .category-btn:focus-visible {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--accent-primary) 11%, var(--theme-surface)) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 8px 20px var(--accent-soft) !important;
+  outline: none;
+}
+
+.wizard-category-grid .category-btn:active {
+  transform: scale(0.97);
+}
+
+.wizard-category-grid .category-btn.active {
+  background: var(--theme-surface) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 0 3px var(--accent-soft) !important;
+}
+
+.wizard-category-grid .category-btn.active:hover,
+.wizard-category-grid .category-btn.active:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px var(--accent-soft), 0 0 0 3px var(--accent-soft) !important;
+}
+
 .calendar-day__header {
   display: flex;
   align-items: center;
@@ -898,7 +2088,7 @@ h4 {
 
 @media (max-width: 480px) {
   .app-shell {
-    padding: 12px 12px 100px;
+    padding: 12px 12px 138px;
   }
 
   .card {
@@ -913,6 +2103,8 @@ h4 {
   .bottom-nav {
     left: 10px;
     right: 10px;
+    width: auto;
+    transform: none;
     border-radius: 24px;
     padding: 10px 10px 12px;
   }
@@ -927,9 +2119,11 @@ h4 {
   }
 
   .bottom-nav__add {
-    width: 52px;
-    height: 52px;
-    margin-top: -6px;
+    width: 48px;
+    height: 48px;
+    margin-top: 0;
+    border-radius: 16px;
+    box-shadow: 0 8px 18px var(--accent-soft);
   }
 
   .calendar-grid {

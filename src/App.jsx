@@ -7,6 +7,18 @@ import CalendarPage from './pages/CalendarPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
+import TransactionWizard from './components/TransactionWizard';
+import CategoryLimitSheet from './components/CategoryLimitSheet';
+import CategoryManagerSheet from './components/CategoryManagerSheet';
+import CategoryAnalyticsPage from './pages/CategoryAnalyticsPage';
+import UserAnalyticsPage from './pages/UserAnalyticsPage';
+import BalancePage from './pages/BalancePage';
+import OnboardingWizard from './components/OnboardingWizard';
+import { ACCENTS, THEMES, createCustomAccent, getUserTransactionNames, loadSettings, persistSettings } from './utils/settingsStorage';
+import { exportTransactionsToXlsx } from './utils/exportTransactions';
+import { getExchangeRate } from './utils/exchangeRates';
+import { getBalancePoints } from './utils/balanceHistory';
+import { findCategory, getCategoryLimit, loadCategories, persistCategories, loadCategoryBudgets, persistCategoryBudgets, setCategoryDefaultLimit, setCategoryMonthLimit } from './utils/categoryStorage';
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbwrEtsTaCzgaF0OGDEApNa1WJd-Yof0PUXYhiOodLS9_Tx0Rx9vYQHXrd0CKMyQ7AeO/exec';
 const STORAGE_KEY = 'startBalance';
@@ -14,25 +26,15 @@ const PERSON_STORAGE_KEY = 'family-budget-last-person';
 const EXPENSE_CATEGORY_STORAGE_KEY = 'family-budget-last-expense-category';
 const INCOME_CATEGORY_STORAGE_KEY = 'family-budget-last-income-category';
 
-const currencyFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-  maximumFractionDigits: 2
-});
 const BACKEND_MUTATIONS_AVAILABLE = true;
 
 const navItems = [
   { id: 'home', icon: '🏠', label: 'Главная' },
-  { id: 'calendar', icon: '📅', label: 'Календарь' },
-  { id: 'history', icon: '🕘', label: 'История' },
+  { id: 'journal', icon: '📅', label: 'Журнал' },
   { id: 'add', icon: '+', label: '' },
   { id: 'stats', icon: '📊', label: 'Аналитика' },
   { id: 'settings', icon: '⚙️', label: 'Настройки' }
 ];
-
-function formatCurrency(value) {
-  return currencyFormatter.format(Number(value || 0));
-}
 
 function parseAmount(value) {
   if (value === null || value === undefined || value === '') return 0;
@@ -156,6 +158,12 @@ function normalizeTransactions(payload) {
 }
 
 function App() {
+  const [settings, setSettings] = useState(() => loadSettings());
+  const [categories, setCategories] = useState(() => loadCategories());
+  const [categoryBudgets, setCategoryBudgets] = useState(() => loadCategoryBudgets());
+  const [limitCategory, setLimitCategory] = useState(null);
+  const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState(() => settings.baseCurrency === settings.currency ? 1 : null);
   const [startBalance, setStartBalance] = useState(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY);
     return stored ? Number(stored) : null;
@@ -165,7 +173,15 @@ function App() {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [homeSelectedMonth, setHomeSelectedMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [view, setView] = useState('home');
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [categoryReturnView, setCategoryReturnView] = useState('home');
+  const [journalTab, setJournalTab] = useState('calendar');
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('');
@@ -175,18 +191,20 @@ function App() {
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [isTransactionDetailOpen, setIsTransactionDetailOpen] = useState(false);
   const [historySearch, setHistorySearch] = useState('');
+  const [historyFilters, setHistoryFilters] = useState({ person: '', type: '', category: '', dateFrom: '', dateTo: '', amountFrom: '', amountTo: '' });
   const [selectedDayTransactions, setSelectedDayTransactions] = useState([]);
   const [isDaySheetOpen, setIsDaySheetOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const amountInputRef = useRef(null);
   const touchStartYRef = useRef(null);
   const [form, setForm] = useState(() => ({
-    person: readStoredSelection(PERSON_STORAGE_KEY, 'Дима'),
+    person: readStoredSelection(PERSON_STORAGE_KEY, settings.users.find((user) => !user.archived)?.name || ''),
     type: 'Расход',
-    category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, expenseCategories[0].label),
+    category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, categories.find((category) => category.type === 'expense' && !category.archived)?.name || ''),
     amount: '',
     comment: ''
   }));
+  const currencyFormatter = useMemo(() => new Intl.NumberFormat('de-DE', { style: 'currency', currency: settings.currency, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 2 }), [settings.currency]);
+  const formatCurrency = (value) => currencyFormatter.format(Number(value || 0) * (exchangeRate || 1));
 
   const refreshTransactions = async (options = {}) => {
     const { showStatus = true, statusMessage = 'Обновлено', showLoading = true } = options;
@@ -227,7 +245,14 @@ function App() {
         document.body.appendChild(script);
       });
 
-      const parsed = normalizeTransactions(payload);
+      const activePersonNames = new Set(settings.users.map((user) => user.name));
+      const parsed = normalizeTransactions(payload).map((transaction) => ({
+        ...transaction,
+        // A newly created user may intentionally reuse a deleted display name.
+        // An active configured user always wins over an old local deletion marker.
+        person: activePersonNames.has(transaction.person) ? transaction.person : (settings.deletedNames?.[transaction.person] || transaction.person),
+        category: settings.deletedCategoryNames?.[transaction.category] || transaction.category
+      }));
       setTransactions(parsed);
       if (showStatus) {
         setStatus(statusMessage);
@@ -254,6 +279,41 @@ function App() {
   }, [startBalance]);
 
   useEffect(() => {
+    persistSettings(settings);
+    const accent = settings.accent === 'custom' ? createCustomAccent(settings.customAccent) : ACCENTS[settings.accent] || ACCENTS.green;
+    const theme = accent.themes[settings.theme] || accent.themes.dark;
+    document.documentElement.style.setProperty('--accent-primary', accent.primary);
+    document.documentElement.style.setProperty('--accent-bright', accent.bright);
+    document.documentElement.style.setProperty('--accent-soft', accent.soft);
+    document.documentElement.style.setProperty('--accent-contrast', accent.onPrimary || '#ffffff');
+    document.documentElement.style.setProperty('--theme-bg-top', theme.bgTop);
+    document.documentElement.style.setProperty('--theme-bg-mid', theme.bgMid);
+    document.documentElement.style.setProperty('--theme-bg-bottom', theme.bgBottom);
+    document.documentElement.style.setProperty('--theme-surface', theme.surface);
+    document.documentElement.style.setProperty('--theme-surface-raised', theme.surfaceRaised);
+    document.documentElement.style.setProperty('--theme-border', theme.border);
+    document.documentElement.style.setProperty('--theme-muted', theme.muted);
+    document.documentElement.style.setProperty('--theme-text', theme.text);
+    document.documentElement.style.setProperty('--theme-shadow', theme.shadow);
+  }, [settings]);
+
+  useEffect(() => { persistCategories(categories); }, [categories]);
+  useEffect(() => { persistCategoryBudgets(categoryBudgets); }, [categoryBudgets]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (settings.baseCurrency === settings.currency) {
+      setExchangeRate(1);
+      return undefined;
+    }
+    setExchangeRate(null);
+    getExchangeRate(settings.baseCurrency, settings.currency)
+      .then((rate) => { if (!cancelled) setExchangeRate(rate); })
+      .catch((error) => { console.error(error); if (!cancelled) setStatus('Курс валют временно недоступен'); });
+    return () => { cancelled = true; };
+  }, [settings.baseCurrency, settings.currency]);
+
+  useEffect(() => {
     if (!status) return undefined;
 
     const timer = window.setTimeout(() => {
@@ -265,11 +325,6 @@ function App() {
 
   useEffect(() => {
     if (!isAddSheetOpen) return undefined;
-
-    const timer = window.setTimeout(() => {
-      amountInputRef.current?.focus();
-    }, 120);
-
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsAddSheetOpen(false);
@@ -278,13 +333,12 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      window.clearTimeout(timer);
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isAddSheetOpen]);
 
   const availableMonths = useMemo(() => {
-    const months = new Set([selectedMonth]);
+    const months = new Set([homeSelectedMonth]);
     transactions.forEach((transaction) => {
       if (transaction.date) {
         months.add(getMonthKey(transaction.date));
@@ -295,27 +349,39 @@ function App() {
     months.add(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
 
     return Array.from(months).sort((a, b) => a.localeCompare(b));
-  }, [selectedMonth, transactions]);
+  }, [homeSelectedMonth, transactions]);
 
   useEffect(() => {
-    if (!availableMonths.includes(selectedMonth)) {
-      setSelectedMonth(availableMonths[availableMonths.length - 1] || selectedMonth);
+    if (!availableMonths.includes(homeSelectedMonth)) {
+      setHomeSelectedMonth(availableMonths[availableMonths.length - 1] || homeSelectedMonth);
     }
-  }, [availableMonths, selectedMonth]);
+  }, [availableMonths, homeSelectedMonth]);
 
-  const filteredTransactions = useMemo(() => {
+  const homeFilteredTransactions = useMemo(() => {
+    return transactions.filter((transaction) => getMonthKey(transaction.date) === homeSelectedMonth);
+  }, [transactions, homeSelectedMonth]);
+  const journalFilteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => getMonthKey(transaction.date) === selectedMonth);
   }, [transactions, selectedMonth]);
 
-  const totals = useMemo(() => calculateTotals(filteredTransactions), [filteredTransactions]);
+  const totals = useMemo(() => calculateTotals(homeFilteredTransactions), [homeFilteredTransactions]);
   const totalIncome = totals.income;
   const totalExpense = totals.expense;
 
   const currentBalance = useMemo(() => {
     return (startBalance ?? 0) + transactions.filter((t) => t.type === 'Доход').reduce((sum, t) => sum + t.amount, 0) - transactions.filter((t) => t.type === 'Расход').reduce((sum, t) => sum + t.amount, 0);
   }, [startBalance, transactions]);
+  const balancePoints = useMemo(() => getBalancePoints(transactions, startBalance), [transactions, startBalance]);
 
-  const expenseBreakdown = useMemo(() => calculateExpenseBreakdown(filteredTransactions), [filteredTransactions]);
+  const expenseBreakdown = useMemo(() => calculateExpenseBreakdown(homeFilteredTransactions), [homeFilteredTransactions]);
+  const homeCategoryBudgets = useMemo(() => {
+    const monthlySpent = new Map(expenseBreakdown.map((item) => [item.category, item.sum]));
+    return categories.filter((category) => category.type === 'expense' && !category.archived).map((category) => {
+      const spent = [...monthlySpent.entries()].filter(([name]) => category.previousNames.includes(name)).reduce((sum, [, amount]) => sum + amount, 0);
+      const limit = getCategoryLimit(categoryBudgets, category.id, homeSelectedMonth);
+      return { ...category, spent, limit, percent: limit ? spent / limit * 100 : 0 };
+    }).filter((category) => category.limit || category.spent > 0);
+  }, [categories, categoryBudgets, expenseBreakdown, homeSelectedMonth]);
   const monthlyTotals = useMemo(() => calculateMonthlyTotals(transactions), [transactions]);
 
   useEffect(() => {
@@ -330,7 +396,7 @@ function App() {
     const lastDayOfMonth = new Date(year, month, 0);
     const firstWeekDay = (firstDayOfMonth.getDay() + 6) % 7;
     const totalCells = Math.ceil((firstWeekDay + lastDayOfMonth.getDate()) / 7) * 7;
-    const transactionsByDay = filteredTransactions.reduce((acc, transaction) => {
+    const transactionsByDay = journalFilteredTransactions.reduce((acc, transaction) => {
       const parsedDate = parseDate(transaction.date);
       if (!parsedDate) return acc;
       const dayKey = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`;
@@ -377,7 +443,7 @@ function App() {
         extraCategoryCount
       };
     });
-  }, [filteredTransactions, selectedMonth]);
+  }, [journalFilteredTransactions, selectedMonth]);
 
   const selectedDayLabel = useMemo(() => {
     if (!selectedDayKey) return '';
@@ -406,15 +472,47 @@ function App() {
 
   const filteredHistoryTransactions = useMemo(() => {
     const search = historySearch.trim().toLowerCase();
-    if (!search) return transactions;
+    const parseSearchAmount = (value) => {
+      const normalized = String(value).trim().replace(',', '.');
+      return normalized === '' ? null : Number(normalized);
+    };
+    const amountFrom = parseSearchAmount(historyFilters.amountFrom);
+    const amountTo = parseSearchAmount(historyFilters.amountTo);
+    const dateFrom = parseDate(historyFilters.dateFrom)?.getTime() ?? null;
+    const dateTo = parseDate(historyFilters.dateTo)?.getTime() ?? null;
 
     return transactions.filter((transaction) => {
-      const haystack = `${transaction.category || ''} ${transaction.comment || ''}`.toLowerCase();
-      return haystack.includes(search);
+      const parsedDate = parseDate(transaction.date);
+      const dateTokens = parsedDate
+        ? [
+            transaction.date,
+            parsedDate.toLocaleDateString('ru-RU'),
+            parsedDate.toLocaleDateString('ru-RU', { month: 'long' }),
+            parsedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }),
+            parsedDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }),
+            `${String(parsedDate.getDate()).padStart(2, '0')}.${String(parsedDate.getMonth() + 1).padStart(2, '0')}.${parsedDate.getFullYear()}`,
+            `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
+          ]
+        : [transaction.date];
+      const haystack = `${dateTokens.join(' ')} ${transaction.category || ''} ${transaction.comment || ''}`.toLowerCase();
+      const matchesText = !search || haystack.includes(search);
+      const matchesFrom = !Number.isFinite(amountFrom) || transaction.amount >= amountFrom;
+      const matchesTo = !Number.isFinite(amountTo) || transaction.amount <= amountTo;
+      const transactionDate = parsedDate?.getTime() ?? null;
+      const matchesDateFrom = dateFrom === null || (transactionDate !== null && transactionDate >= dateFrom);
+      const matchesDateTo = dateTo === null || (transactionDate !== null && transactionDate <= dateTo);
+      const selectedUser = settings.users.find((user) => user.id === historyFilters.person);
+      const matchesPerson = !historyFilters.person || (selectedUser ? getUserTransactionNames(selectedUser).has(transaction.person) : transaction.person === historyFilters.person);
+      const matchesType = !historyFilters.type || transaction.type === historyFilters.type;
+      const matchesCategory = !historyFilters.category || transaction.category === historyFilters.category;
+      return matchesText && matchesFrom && matchesTo && matchesDateFrom && matchesDateTo && matchesPerson && matchesType && matchesCategory;
     });
-  }, [historySearch, transactions]);
+  }, [historyFilters, historySearch, settings.users, transactions]);
 
-  const categoryOptions = form.type === 'Расход' ? expenseCategories : incomeCategories;
+  const historyFilterOptions = useMemo(() => ({
+    people: settings.users.map((user) => ({ id: user.id, name: user.name, avatar: user.avatar, archived: user.archived })),
+    categories: [...new Set(transactions.map((transaction) => transaction.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'))
+  }), [settings.users, transactions]);
 
   const handleBalanceSave = (event) => {
     event.preventDefault();
@@ -425,24 +523,30 @@ function App() {
     setStatus('Начальный баланс сохранён');
   };
 
+  const handleHomeMonthChange = (month) => {
+    setHomeSelectedMonth(month);
+    setSelectedMonth(month);
+  };
+
   const handleOpenAddSheet = (transaction = null) => {
     if (transaction) {
       setEditingTransaction(transaction);
       setForm({
-        person: normalizePersonValue(transaction.person || 'Дима'),
+        person: normalizePersonValue(transaction.person || settings.users.find((user) => !user.archived)?.name || ''),
         type: transaction.type || 'Расход',
-        category: transaction.category || expenseCategories[0].label,
-        amount: String(transaction.amount || ''),
+        category: transaction.category || categories.find((category) => category.type === 'expense' && !category.archived)?.name || '',
+        amount: String(((transaction.amount || 0) * (exchangeRate || 1))),
         comment: transaction.comment || ''
       });
     } else {
       setEditingTransaction(null);
-      setForm((prev) => ({
-        ...prev,
-        person: readStoredSelection(PERSON_STORAGE_KEY, prev.person || 'Дима'),
+      setForm({
+        person: readStoredSelection(PERSON_STORAGE_KEY, settings.users.find((user) => !user.archived)?.name || ''),
         type: 'Расход',
-        category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, expenseCategories[0].label)
-      }));
+        category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, categories.find((category) => category.type === 'expense' && !category.archived)?.name || ''),
+        amount: '',
+        comment: ''
+      });
     }
     setIsAddSheetOpen(true);
   };
@@ -461,9 +565,11 @@ function App() {
     }
 
     if (name === 'type') {
+      const categoryType = value === 'Расход' ? 'expense' : 'income';
+      const fallback = categories.find((category) => category.type === categoryType && !category.archived)?.name || '';
       const nextCategory = value === 'Расход'
-        ? readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, expenseCategories[0].label)
-        : readStoredSelection(INCOME_CATEGORY_STORAGE_KEY, incomeCategories[0].label);
+        ? readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, fallback)
+        : readStoredSelection(INCOME_CATEGORY_STORAGE_KEY, fallback);
       setForm((prev) => ({ ...prev, type: value, category: nextCategory }));
       return;
     }
@@ -485,6 +591,17 @@ function App() {
   const handleOpenTransactionDetails = (transaction) => {
     setSelectedTransaction(transaction);
     setIsTransactionDetailOpen(true);
+  };
+
+  const handleOpenCategory = (category, returnView) => {
+    setSelectedCategory(category);
+    setCategoryReturnView(returnView);
+    setView('category');
+  };
+
+  const handleCloseCategory = () => {
+    setSelectedCategory(null);
+    setView(categoryReturnView);
   };
 
   const handleCloseTransactionDetails = () => {
@@ -530,8 +647,13 @@ function App() {
     event.preventDefault();
     if (isSubmitting) return;
 
-    const amount = parseAmount(form.amount);
-    if (!amount) return;
+    const enteredAmount = parseAmount(form.amount);
+    if (!enteredAmount) return;
+    if (!exchangeRate) {
+      setStatus('Дождитесь загрузки курса валют');
+      return;
+    }
+    const amount = enteredAmount / exchangeRate;
 
     const isEditing = Boolean(editingTransaction);
     const payload = isEditing
@@ -555,6 +677,7 @@ function App() {
 
     setIsSubmitting(true);
     try {
+      const knownIds = new Set(transactions.map((transaction) => String(transaction.id)));
       await fetch(API_URL, {
         method: 'POST',
         mode: 'no-cors',
@@ -562,16 +685,24 @@ function App() {
         body: JSON.stringify(payload)
       });
 
+      setStatus('Проверяю сохранение…');
+      let confirmed = false;
+      for (let attempt = 0; attempt < 3 && !confirmed; attempt += 1) {
+        await new Promise((resolve) => window.setTimeout(resolve, 900));
+        const refreshed = await refreshTransactions({ showStatus: false, showLoading: false });
+        const matchesPayload = (transaction) => transaction.person === form.person && transaction.type === form.type && transaction.category === form.category && Math.abs(transaction.amount - amount) < 0.0001 && transaction.comment === form.comment;
+        confirmed = isEditing
+          ? refreshed.some((transaction) => String(transaction.id) === String(editingTransaction.id) && matchesPayload(transaction))
+          : refreshed.some((transaction) => !knownIds.has(String(transaction.id)) && matchesPayload(transaction));
+      }
+
       setIsAddSheetOpen(false);
       setIsTransactionDetailOpen(false);
       setEditingTransaction(null);
       setSelectedTransaction(null);
       setForm((prev) => ({ ...prev, amount: '', comment: '' }));
       setView('home');
-      setStatus(isEditing ? 'Изменено' : 'Добавлено');
-      window.setTimeout(() => {
-        void refreshTransactions({ showStatus: false, showLoading: false });
-      }, 1000);
+      setStatus(confirmed ? (isEditing ? 'Изменено' : 'Добавлено') : 'Операция отправлена, но пока не подтверждена');
     } catch (error) {
       console.error(error);
       setStatus('Ошибка сохранения');
@@ -580,38 +711,33 @@ function App() {
     }
   };
 
-  const renderWelcome = () => (
-    <div className="screen welcome-screen">
-      <div className="card hero-card">
-        <div className="hero-badge">Новый уровень контроля</div>
-        <p className="eyebrow">Добро пожаловать</p>
-        <h1>Семейный бюджет</h1>
-        <p>Начните с текущего баланса семьи, чтобы приложение могло считать доходы, расходы и остаток.</p>
-        <form onSubmit={handleBalanceSave} className="stack">
-          <label className="field">
-            <span>Текущий баланс</span>
-            <input name="balance" type="number" step="0.01" placeholder="0.00" autoFocus />
-          </label>
-          <button className="primary-btn" type="submit">Сохранить</button>
-        </form>
-      </div>
-    </div>
-  );
+  const renderWelcome = () => <OnboardingWizard onComplete={({ baseCurrency, currency, balance, users, categories: onboardingCategories }) => {
+    setStartBalance(balance);
+    setCategories(onboardingCategories);
+    setSettings({ ...settings, baseCurrency, currency, users, onboardingComplete: true });
+    setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
+  }} />;
 
   const renderHome = () => (
     <HomePage
       currentBalance={currentBalance}
-      selectedMonth={selectedMonth}
+      selectedMonth={homeSelectedMonth}
       availableMonths={availableMonths}
       totalIncome={totalIncome}
       totalExpense={totalExpense}
+      monthlyBalanceChange={totalIncome - totalExpense}
+      balancePoints={balancePoints}
       expenseBreakdown={expenseBreakdown}
-      filteredTransactions={filteredTransactions}
+      categoryBudgets={homeCategoryBudgets}
+      filteredTransactions={homeFilteredTransactions}
       formatCurrency={formatCurrency}
       formatTransactionDate={formatTransactionDate}
       getMonthLabel={getMonthLabel}
-      onMonthChange={setSelectedMonth}
+      onMonthChange={handleHomeMonthChange}
       onOpenTransactionDetails={handleOpenTransactionDetails}
+      onOpenCategory={(category) => handleOpenCategory(category, 'home')}
+      onOpenLimit={setLimitCategory}
+      onOpenBalance={() => setView('balance')}
     />
   );
 
@@ -645,117 +771,56 @@ function App() {
       transactions={filteredHistoryTransactions}
       searchValue={historySearch}
       onSearchChange={setHistorySearch}
+      filters={historyFilters}
+      filterOptions={historyFilterOptions}
+      onFiltersChange={setHistoryFilters}
       onSelectTransaction={handleOpenTransactionDetails}
       formatCurrency={formatCurrency}
       formatTransactionDate={formatTransactionDate}
     />
   );
 
+  const renderJournal = () => (
+    <div className="screen journal-screen">
+      <div className="card journal-tabs">
+        <button
+          type="button"
+          className={`journal-tab ${journalTab === 'calendar' ? 'active' : ''}`}
+          onClick={() => setJournalTab('calendar')}
+        >
+          Календарь
+        </button>
+        <button
+          type="button"
+          className={`journal-tab ${journalTab === 'history' ? 'active' : ''}`}
+          onClick={() => setJournalTab('history')}
+        >
+          История
+        </button>
+      </div>
+      {journalTab === 'calendar' ? renderCalendar() : renderHistory()}
+    </div>
+  );
+
   const renderAddSheet = () => {
     if (!isAddSheetOpen) return null;
 
     return (
-      <div className="sheet-backdrop" onClick={handleCloseAddSheet}>
-        <div
-          className="sheet-card"
-          onClick={(event) => event.stopPropagation()}
-          onTouchStart={(event) => {
-            touchStartYRef.current = event.touches[0].clientY;
-          }}
-          onTouchEnd={(event) => {
-            if (touchStartYRef.current === null) return;
-            const deltaY = event.changedTouches[0].clientY - touchStartYRef.current;
-            if (deltaY > 90) {
-              handleCloseAddSheet();
-            }
-            touchStartYRef.current = null;
-          }}
-        >
-          <div className="sheet-handle" />
-          <div className="sheet-header">
-            <div>
-              <p className="eyebrow">{editingTransaction ? 'Изменить' : 'Новая операция'}</p>
-              <h3>{editingTransaction ? 'Изменить' : 'Добавить'}</h3>
-            </div>
-            <button className="ghost-btn" onClick={handleCloseAddSheet}>
-              Закрыть
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="stack sheet-body">
-            <div className="card sheet-panel">
-              <div className="segmented-control">
-                {['Дима', 'Ида'].map((person) => (
-                  <button
-                    key={person}
-                    type="button"
-                    className={`segment-btn ${form.person === person ? 'active' : ''}`}
-                    onClick={() => handleFormChange({ target: { name: 'person', value: person } })}
-                  >
-                    {person}
-                  </button>
-                ))}
-              </div>
-
-              <div className="segmented-control top-space">
-                {['Расход', 'Доход'].map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    className={`segment-btn ${form.type === type ? 'active' : ''}`}
-                    onClick={() => handleFormChange({ target: { name: 'type', value: type } })}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="card sheet-panel">
-              <p className="eyebrow">Категория</p>
-              <div className="category-grid">
-                {categoryOptions.map((category) => (
-                  <button
-                    key={category.label}
-                    type="button"
-                    className={`category-btn ${form.category === category.label ? 'active' : ''}`}
-                    onClick={() => handleCategorySelect(category.label)}
-                  >
-                    <span>{category.icon}</span>
-                    <strong>{category.label}</strong>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="card sheet-panel stack">
-              <label className="field">
-                <span>Сумма</span>
-                <input
-                  ref={amountInputRef}
-                  name="amount"
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.amount}
-                  onChange={handleFormChange}
-                />
-              </label>
-              <label className="field">
-                <span>Комментарий</span>
-                <input name="comment" type="text" placeholder="Например, супермаркет" value={form.comment} onChange={handleFormChange} />
-              </label>
-            </div>
-
-            <div className="sheet-actions">
-              <button className="primary-btn" type="submit" disabled={loading || isSubmitting}>
-                {isSubmitting ? 'Сохраняю…' : editingTransaction ? 'Сохранить' : 'Сохранить'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
+      <TransactionWizard
+        form={form}
+        isEditing={Boolean(editingTransaction)}
+        isSubmitting={isSubmitting}
+        loading={loading}
+        currencyLabel={settings.currency}
+        isRateLoading={!exchangeRate}
+        users={editingTransaction ? settings.users : settings.users.filter((user) => !user.archived)}
+        categoryOptions={categories.filter((category) => !category.archived && category.type === (form.type === 'Расход' ? 'expense' : 'income'))}
+        onChange={handleFormChange}
+        onCategorySelect={handleCategorySelect}
+        onClose={handleCloseAddSheet}
+        onSubmit={handleSubmit}
+        onReceiptClick={() => setStatus('Добавление чеков появится позже')}
+      />
     );
   };
 
@@ -918,14 +983,57 @@ function App() {
       monthlyTotals={monthlyTotals}
       expenseBreakdown={expenseBreakdown}
       totalExpense={totalExpense}
-      selectedMonth={selectedMonth}
+      selectedMonth={homeSelectedMonth}
+      filteredTransactions={homeFilteredTransactions}
+      allTransactions={transactions}
       formatCurrency={formatCurrency}
       getMonthLabel={getMonthLabel}
+      getCategoryIcon={getCategoryIcon}
       onBack={() => setView('home')}
+      onOpenCategory={(category) => handleOpenCategory(category, 'stats')}
+      users={settings.users}
+      categories={categories}
+      onOpenUser={(user) => { setSelectedUser(user); setView('user'); }}
     />
   );
 
-  const renderSettings = () => <SettingsPage />;
+  const renderCategoryDetail = () => {
+    if (!selectedCategory) return null;
+    return <CategoryAnalyticsPage category={selectedCategory} selectedMonth={homeSelectedMonth} transactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} getCategoryIcon={getCategoryIcon} onBack={handleCloseCategory} onOpenTransaction={handleOpenTransactionDetails} />;
+  };
+
+  const renderUserAnalytics = () => selectedUser ? <UserAnalyticsPage user={selectedUser} selectedMonth={homeSelectedMonth} monthlyTransactions={homeFilteredTransactions} allTransactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} onBack={() => setView('stats')} onOpenTransaction={handleOpenTransactionDetails} /> : null;
+  const renderBalance = () => <BalancePage points={balancePoints} formatCurrency={formatCurrency} onBack={() => setView('home')} />;
+
+  const renderSettings = () => <SettingsPage
+    startBalance={startBalance}
+    exchangeRate={exchangeRate}
+    onSaveBalance={(value) => { setStartBalance(value); setStatus('Начальный баланс сохранён'); }}
+    settings={settings}
+    onSettingsChange={setSettings}
+    transactions={transactions}
+    onDeleteUser={(user) => {
+      if (settings.users.length <= 1) {
+        setStatus('Нужен хотя бы один пользователь');
+        return;
+      }
+      const names = Array.from(new Set([user.name, ...(user.previousNames || user.legacyNames || [])]));
+      const deletedNames = Object.fromEntries(names.map((name) => [name, `Удалён ${user.name}`]));
+      setSettings({ ...settings, users: settings.users.filter((item) => item.id !== user.id), deletedNames: { ...settings.deletedNames, ...deletedNames } });
+      setTransactions((current) => current.map((transaction) => deletedNames[transaction.person] ? { ...transaction, person: deletedNames[transaction.person] } : transaction));
+      setStatus(`Пользователь ${user.name} удалён`);
+    }}
+    onStatus={setStatus}
+    onExport={() => { try { exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } }}
+    onRestartOnboarding={() => setSettings({ ...settings, onboardingComplete: false })}
+    onManageCategories={() => setIsCategoryManagerOpen(true)}
+  />;
+
+  const renderCategoryLimitSheet = () => {
+    if (!limitCategory) return null;
+    const current = homeCategoryBudgets.find((category) => category.id === limitCategory.id) || limitCategory;
+    return <CategoryLimitSheet category={current} monthLabel={getMonthLabel(homeSelectedMonth)} spent={current.spent || 0} limit={current.limit} percent={current.percent || 0} formatCurrency={formatCurrency} onClose={() => setLimitCategory(null)} onSave={(value) => { setCategoryBudgets((currentBudgets) => setCategoryMonthLimit(currentBudgets, current.id, homeSelectedMonth, value)); setLimitCategory(null); setStatus('Лимит сохранён'); }} onRemove={() => { setCategoryBudgets((currentBudgets) => setCategoryMonthLimit(currentBudgets, current.id, homeSelectedMonth, '')); setLimitCategory(null); setStatus('Лимит убран'); }} />;
+  };
 
   const renderBottomNavigation = () => (
     <nav className="bottom-nav">
@@ -942,7 +1050,14 @@ function App() {
           <button
             key={item.id}
             className={`bottom-nav__item ${view === item.id ? 'active' : ''}`}
-            onClick={() => setView(item.id)}
+            onClick={() => {
+              if (item.id === 'journal') {
+                setView('journal');
+                setJournalTab('calendar');
+              } else {
+                setView(item.id);
+              }
+            }}
             type="button"
           >
             <span className="bottom-nav__icon">{item.icon}</span>
@@ -953,7 +1068,7 @@ function App() {
     </nav>
   );
 
-  if (startBalance === null) {
+  if (!settings.onboardingComplete) {
     return renderWelcome();
   }
 
@@ -962,10 +1077,14 @@ function App() {
       {status && <div className="toast">{status}</div>}
       {view === 'home' && renderHome()}
       {view === 'stats' && renderStats()}
-      {view === 'calendar' && renderCalendar()}
-      {view === 'history' && renderHistory()}
+      {view === 'category' && renderCategoryDetail()}
+      {view === 'user' && renderUserAnalytics()}
+      {view === 'balance' && renderBalance()}
+      {view === 'journal' && renderJournal()}
       {view === 'settings' && renderSettings()}
       {renderAddSheet()}
+      {renderCategoryLimitSheet()}
+      {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} formatCurrency={formatCurrency} onChange={setCategories} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => setCategoryBudgets((current) => setCategoryDefaultLimit(current, categoryId, value))} onDeleteCategory={(category) => { const names = Array.from(new Set([category.name, ...(category.previousNames || [])])); const deletedCategoryNames = Object.fromEntries(names.map((name) => [name, `Удалённая категория ${category.name}`])); setCategories((current) => current.filter((item) => item.id !== category.id)); setSettings((current) => ({ ...current, deletedCategoryNames: { ...current.deletedCategoryNames, ...deletedCategoryNames } })); setTransactions((current) => current.map((transaction) => deletedCategoryNames[transaction.category] ? { ...transaction, category: deletedCategoryNames[transaction.category] } : transaction)); setStatus(`Категория ${category.name} удалена`); }} /> : null}
       {renderCalendarDaySheet()}
       {renderTransactionDetailSheet()}
       {isDeleteConfirmOpen && selectedTransaction ? (
