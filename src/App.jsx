@@ -8,6 +8,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import TransactionWizard from './components/TransactionWizard';
+import TransactionEditSheet from './components/TransactionEditSheet';
 import CategoryLimitSheet from './components/CategoryLimitSheet';
 import CategoryManagerSheet from './components/CategoryManagerSheet';
 import CategoryAnalyticsPage from './pages/CategoryAnalyticsPage';
@@ -91,6 +92,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [selectedDayKey, setSelectedDayKey] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -458,7 +460,19 @@ function App() {
     setSelectedMonth(month);
   };
 
-  const handleOpenAddSheet = (transaction = null) => {
+  const handleOpenAddSheet = () => {
+    setEditingTransaction(null);
+    setForm({
+      person: readStoredSelection(PERSON_STORAGE_KEY, familyUsers.find((user) => !user.archived)?.name || ''),
+      type: 'Расход',
+      category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, categories.find((category) => category.type === 'expense' && !category.archived)?.name || ''),
+      amount: '',
+      comment: ''
+    });
+    setIsAddSheetOpen(true);
+  };
+
+  const handleOpenEditSheet = (transaction) => {
     if (transaction) {
       setEditingTransaction(transaction);
       setForm({
@@ -468,21 +482,17 @@ function App() {
         amount: String(((transaction.amount || 0) * (exchangeRate || 1))),
         comment: transaction.comment || ''
       });
-    } else {
-      setEditingTransaction(null);
-      setForm({
-        person: readStoredSelection(PERSON_STORAGE_KEY, familyUsers.find((user) => !user.archived)?.name || ''),
-        type: 'Расход',
-        category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, categories.find((category) => category.type === 'expense' && !category.archived)?.name || ''),
-        amount: '',
-        comment: ''
-      });
     }
-    setIsAddSheetOpen(true);
+    setIsEditSheetOpen(true);
   };
 
   const handleCloseAddSheet = () => {
     setIsAddSheetOpen(false);
+    setEditingTransaction(null);
+  };
+
+  const handleCloseEditSheet = () => {
+    setIsEditSheetOpen(false);
     setEditingTransaction(null);
   };
 
@@ -590,6 +600,7 @@ function App() {
       setTransactions((current) => isEditing ? current.map((transaction) => transaction.id === saved.id ? saved : transaction) : [saved, ...current]);
 
       setIsAddSheetOpen(false);
+      setIsEditSheetOpen(false);
       setIsTransactionDetailOpen(false);
       setEditingTransaction(null);
       setSelectedTransaction(null);
@@ -729,6 +740,24 @@ function App() {
         onClose={handleCloseAddSheet}
         onSubmit={handleSubmit}
         onReceiptClick={() => setStatus('Добавление чеков появится позже')}
+      />
+    );
+  };
+
+  const renderEditSheet = () => {
+    if (!isEditSheetOpen || !editingTransaction) return null;
+    return (
+      <TransactionEditSheet
+        form={form}
+        users={familyUsers}
+        categories={categories}
+        currencyLabel={settings.currency}
+        isSubmitting={isSubmitting}
+        isRateLoading={!exchangeRate}
+        onChange={handleFormChange}
+        onCategorySelect={handleCategorySelect}
+        onClose={handleCloseEditSheet}
+        onSubmit={handleSubmit}
       />
     );
   };
@@ -873,7 +902,7 @@ function App() {
             <div className="sheet-actions detail-actions">
               <button className="ghost-btn" type="button" onClick={() => {
                 handleCloseTransactionDetails();
-                handleOpenAddSheet(selectedTransaction);
+                handleOpenEditSheet(selectedTransaction);
               }}>
                 ✏️ Изменить
               </button>
@@ -1035,6 +1064,7 @@ function App() {
       {view === 'journal' && renderJournal()}
       {view === 'settings' && renderSettings()}
       {renderAddSheet()}
+      {renderEditSheet()}
       {renderCategoryLimitSheet()}
       {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} formatCurrency={formatCurrency} onChange={handleCategoriesChange} onSaveCategory={handleSaveCategory} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => void handleCategoryLimitChange(categoryId, null, value)} onDeleteCategory={async (category) => { try { if (/^[0-9a-f-]{36}$/i.test(category.id)) await deleteCategory(householdId, category.id); setCategories((current) => current.filter((item) => item.id !== category.id)); setStatus(`Категория ${category.name} удалена`); } catch (error) { console.error(error); setStatus('Не удалось удалить категорию'); } }} /> : null}
       {renderCalendarDaySheet()}

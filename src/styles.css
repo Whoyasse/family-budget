@@ -1027,6 +1027,21 @@ button.category-row {
   animation: sheetIn 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.transaction-edit-sheet {
+  width: min(100%, 440px);
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.transaction-edit-form {
+  margin-top: 14px;
+  gap: 14px;
+}
+
+.transaction-edit-form select,
+.transaction-edit-form input {
+  width: 100%;
+}
+
 .wizard-sheet {
   height: clamp(440px, 62vh, 650px);
   max-height: calc(100dvh - 16px);
