@@ -444,12 +444,12 @@ function App() {
 
   const handleCategoryLimitChange = async (categoryId, monthKey, value) => {
     try {
-      await saveCategoryLimit(householdId, categoryId, monthKey, value);
+      await saveCategoryLimit(householdId, categoryId, monthKey, value, authUser.id);
       setCategoryBudgets(await loadCategoryLimits(householdId));
       setStatus(value ? 'Лимит сохранён' : 'Лимит убран');
     } catch (error) {
       console.error(error);
-      setStatus('Не удалось сохранить лимит');
+      setStatus(describeSupabaseError(error, 'Не удалось сохранить лимит'));
     }
   };
 
