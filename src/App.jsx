@@ -163,8 +163,7 @@ function normalizeTransactions(payload) {
 
 function App() {
   const { session, authUser, loading: authLoading, signOut } = useAuth();
-  const { householdId, household, budgetUsers: familyUsers, loading: householdLoading, createdHousehold, createBudgetUser, updateBudgetUser, deleteBudgetUser, updateHouseholdName } = useHousehold();
-  const [onboardingRequested, setOnboardingRequested] = useState(false);
+  const { householdId, household, budgetUsers: familyUsers, loading: householdLoading, onboardingCompleted, createBudgetUser, updateBudgetUser, deleteBudgetUser, updateHouseholdName, completeOnboarding, restartOnboarding } = useHousehold();
   const [settings, setSettings] = useState(() => loadSettings());
   const [categories, setCategories] = useState(() => loadCategories());
   const [categoryBudgets, setCategoryBudgets] = useState(() => loadCategoryBudgets());
@@ -719,14 +718,12 @@ function App() {
     }
   };
 
-  const renderWelcome = () => <OnboardingWizard onComplete={({ baseCurrency, currency, balance, users, categories: onboardingCategories }) => {
+  const renderWelcome = () => <OnboardingWizard onComplete={async ({ baseCurrency, currency, balance, users, categories: onboardingCategories }) => {
     setStartBalance(balance);
     setCategories(onboardingCategories);
-    setSettings({ ...settings, baseCurrency, currency, onboardingComplete: true });
-    users.forEach((user) => {
-      void createBudgetUser(user).catch((error) => { console.error(error); setStatus('Не удалось сохранить участников семьи'); });
-    });
-    setOnboardingRequested(false);
+    await Promise.all(users.map((user) => createBudgetUser(user)));
+    setSettings({ ...settings, baseCurrency, currency });
+    await completeOnboarding();
     setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
   }} />;
 
@@ -1043,7 +1040,7 @@ function App() {
     }}
     onStatus={setStatus}
     onExport={() => { try { exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } }}
-    onRestartOnboarding={() => { setOnboardingRequested(true); setSettings({ ...settings, onboardingComplete: false }); }}
+    onRestartOnboarding={() => { void restartOnboarding().catch((error) => { console.error(error); setStatus('Не удалось перезапустить настройку'); }); }}
     onManageCategories={() => setIsCategoryManagerOpen(true)}
     onSignOut={async () => {
       const { error } = await signOut();
@@ -1109,7 +1106,11 @@ function App() {
     return <HouseholdSetupPage />;
   }
 
-  if (onboardingRequested || (!settings.onboardingComplete && createdHousehold)) {
+  if (onboardingCompleted === null) {
+    return <main className="auth-loading-shell"><div className="card auth-loading-card"><div className="loading-spinner" /><p>Проверяем настройку семьи…</p></div></main>;
+  }
+
+  if (onboardingCompleted === false) {
     return renderWelcome();
   }
 

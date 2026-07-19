@@ -1,5 +1,4 @@
 const SETTINGS_KEY = 'family-budget-settings';
-const LEGACY_BALANCE_KEY = 'startBalance';
 
 export const DEFAULT_USERS = [];
 
@@ -90,9 +89,8 @@ function readRaw() {
 }
 
 export function loadSettings() {
-  if (typeof window === 'undefined') return { currency: 'EUR', accent: 'green', theme: 'dark', onboardingComplete: false };
+  if (typeof window === 'undefined') return { currency: 'EUR', accent: 'green', theme: 'dark' };
   const raw = readRaw();
-  const hasLegacyInstallation = window.localStorage.getItem(LEGACY_BALANCE_KEY) !== null;
   return {
     version: 1,
     currency: ['EUR', 'USD', 'RUB', 'PLN', 'UAH'].includes(raw.currency) ? raw.currency : 'EUR',
@@ -103,13 +101,12 @@ export function loadSettings() {
     customAccent: /^#[\da-f]{6}$/i.test(raw.customAccent) ? raw.customAccent : '#2fcf72',
     theme: THEMES[raw.theme] ? raw.theme : 'dark',
     deletedNames: raw.deletedNames && typeof raw.deletedNames === 'object' ? raw.deletedNames : {},
-    deletedCategoryNames: raw.deletedCategoryNames && typeof raw.deletedCategoryNames === 'object' ? raw.deletedCategoryNames : {},
-    onboardingComplete: raw.onboardingComplete ?? hasLegacyInstallation
+    deletedCategoryNames: raw.deletedCategoryNames && typeof raw.deletedCategoryNames === 'object' ? raw.deletedCategoryNames : {}
   };
 }
 
 export function persistSettings(settings) {
-  const { users, ...uiSettings } = settings;
+  const { users, onboardingComplete, ...uiSettings } = settings;
   window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({ version: 1, ...uiSettings }));
 }
 
