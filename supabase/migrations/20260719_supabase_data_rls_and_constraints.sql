@@ -32,7 +32,7 @@ alter table public.categories
 alter table public.category_limits
   add column if not exists household_id uuid,
   add column if not exists category_id uuid,
-  add column if not exists month_key text,
+  add column if not exists month_start date,
   add column if not exists amount numeric not null default 0;
 
 alter table public.budget_users
@@ -64,7 +64,7 @@ create index if not exists categories_household_position_idx
 create index if not exists budget_users_household_created_at_idx
   on public.budget_users (household_id, created_at);
 create unique index if not exists category_limits_household_category_period_key
-  on public.category_limits (household_id, category_id, coalesce(month_key, ''));
+  on public.category_limits (household_id, category_id, month_start);
 
 alter table public.household_settings enable row level security;
 alter table public.transactions enable row level security;

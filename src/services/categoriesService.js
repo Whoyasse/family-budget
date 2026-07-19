@@ -66,13 +66,14 @@ export async function deleteCategory(householdId, id) {
 export async function loadCategoryLimits(householdId) {
   const { data, error } = await supabase
     .from('category_limits')
-    .select('category_id,month_key,amount')
+    .select('category_id,month_start,amount')
     .eq('household_id', householdId);
   if (error) throwSupabaseError(error, 'category_limits.load');
   return (data || []).reduce((limits, row) => {
     const current = limits[row.category_id] || { monthlyOverrides: {} };
-    if (row.month_key) current.monthlyOverrides[row.month_key] = Number(row.amount);
-    else current.defaultLimit = Number(row.amount);
+    const monthStart = new Date(`${row.month_start}T00:00:00`);
+    const monthKey = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+    current.monthlyOverrides[monthKey] = Number(row.amount);
     limits[row.category_id] = current;
     return limits;
   }, {});
@@ -80,8 +81,9 @@ export async function loadCategoryLimits(householdId) {
 
 export async function saveCategoryLimit(householdId, categoryId, monthKey, value) {
   const amount = Number(String(value).replace(',', '.'));
+  const monthStart = `${monthKey}-01`;
   const baseQuery = supabase.from('category_limits').delete().eq('household_id', householdId).eq('category_id', categoryId);
-  const deleteQuery = monthKey ? baseQuery.eq('month_key', monthKey) : baseQuery.is('month_key', null);
+  const deleteQuery = baseQuery.eq('month_start', monthStart);
   if (!Number.isFinite(amount) || amount <= 0) {
     const { error } = await deleteQuery;
     if (error) throwSupabaseError(error, 'category_limits.delete');
@@ -92,9 +94,9 @@ export async function saveCategoryLimit(householdId, categoryId, monthKey, value
   const { data, error } = await supabase.from('category_limits').insert({
     household_id: householdId,
     category_id: categoryId,
-    month_key: monthKey || null,
+    month_start: monthStart,
     amount
-  }).select('category_id,month_key,amount').single();
+  }).select('category_id,month_start,amount').single();
   if (error) throwSupabaseError(error, 'category_limits.create');
   return data;
 }

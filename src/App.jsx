@@ -437,10 +437,12 @@ function App() {
       const saved = await saveCategory(householdId, { ...category, position: categories.findIndex((item) => item.id === category.id) });
       setCategories((current) => current.map((item) => item.id === category.id ? saved : item));
       setStatus('Категория сохранена');
+      return saved;
     } catch (error) {
       console.error(error);
       setStatus('Не удалось сохранить категорию');
       void loadSupabaseCategories(householdId).then(setCategories);
+      throw error;
     }
   };
 
@@ -452,6 +454,7 @@ function App() {
     } catch (error) {
       console.error(error);
       setStatus(describeSupabaseError(error, 'Не удалось сохранить лимит'));
+      throw error;
     }
   };
 
@@ -1066,7 +1069,7 @@ function App() {
       {renderAddSheet()}
       {renderEditSheet()}
       {renderCategoryLimitSheet()}
-      {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} formatCurrency={formatCurrency} onChange={handleCategoriesChange} onSaveCategory={handleSaveCategory} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => void handleCategoryLimitChange(categoryId, null, value)} onDeleteCategory={async (category) => { try { if (/^[0-9a-f-]{36}$/i.test(category.id)) await deleteCategory(householdId, category.id); setCategories((current) => current.filter((item) => item.id !== category.id)); setStatus(`Категория ${category.name} удалена`); } catch (error) { console.error(error); setStatus('Не удалось удалить категорию'); } }} /> : null}
+      {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} onChange={handleCategoriesChange} onSaveCategory={handleSaveCategory} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => handleCategoryLimitChange(categoryId, homeSelectedMonth, value)} onDeleteCategory={async (category) => { try { if (/^[0-9a-f-]{36}$/i.test(category.id)) await deleteCategory(householdId, category.id); setCategories((current) => current.filter((item) => item.id !== category.id)); setStatus(`Категория ${category.name} удалена`); } catch (error) { console.error(error); setStatus('Не удалось удалить категорию'); } }} /> : null}
       {renderCalendarDaySheet()}
       {renderTransactionDetailSheet()}
       {isDeleteConfirmOpen && selectedTransaction ? (
