@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
-import { expenseCategories, incomeCategories, getCategoryIcon } from './data/categories';
+import { getCategoryIcon } from './data/categories';
 import { formatTransactionDate, getMonthKey, getMonthLabel, parseDate, parseTimeValue } from './utils/date';
 import { calculateExpenseBreakdown, calculateMonthlyTotals, calculateTotals } from './utils/statistics';
 import HomePage from './pages/HomePage';
@@ -8,6 +8,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import TransactionWizard from './components/TransactionWizard';
+import TransactionEditSheet from './components/TransactionEditSheet';
 import CategoryLimitSheet from './components/CategoryLimitSheet';
 import CategoryManagerSheet from './components/CategoryManagerSheet';
 import CategoryAnalyticsPage from './pages/CategoryAnalyticsPage';
@@ -18,19 +19,19 @@ import { ACCENTS, THEMES, createCustomAccent, getUserTransactionNames, loadSetti
 import { exportTransactionsToXlsx } from './utils/exportTransactions';
 import { getExchangeRate } from './utils/exchangeRates';
 import { getBalancePoints } from './utils/balanceHistory';
-import { findCategory, getCategoryLimit, loadCategories, persistCategories, loadCategoryBudgets, persistCategoryBudgets, setCategoryDefaultLimit, setCategoryMonthLimit } from './utils/categoryStorage';
+import { getCategoryLimit } from './utils/categoryStorage';
+import { createTransaction, deleteTransaction, loadTransactions, updateTransaction } from './services/transactionsService';
+import { createCategories, deleteCategory, loadCategories as loadSupabaseCategories, loadCategoryLimits, saveCategory, saveCategoryLimit } from './services/categoriesService';
+import { loadHouseholdSettings, saveHouseholdSettings } from './services/settingsService';
+import { describeSupabaseError } from './services/supabaseError';
 import { useAuth } from './contexts/AuthContext';
 import { useHousehold } from './contexts/HouseholdContext';
 import AuthPage from './pages/AuthPage';
 import HouseholdSetupPage from './pages/HouseholdSetupPage';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbwrEtsTaCzgaF0OGDEApNa1WJd-Yof0PUXYhiOodLS9_Tx0Rx9vYQHXrd0CKMyQ7AeO/exec';
-const STORAGE_KEY = 'startBalance';
 const PERSON_STORAGE_KEY = 'family-budget-last-person';
 const EXPENSE_CATEGORY_STORAGE_KEY = 'family-budget-last-expense-category';
 const INCOME_CATEGORY_STORAGE_KEY = 'family-budget-last-income-category';
-
-const BACKEND_MUTATIONS_AVAILABLE = true;
 
 const navItems = [
   { id: 'home', icon: '🏠', label: 'Главная' },
@@ -45,15 +46,6 @@ function parseAmount(value) {
   const normalized = String(value).replace(/\s/g, '').replace(',', '.');
   const number = Number(normalized);
   return Number.isFinite(number) ? number : 0;
-}
-
-function normalizeHeader(value) {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zа-яё0-9]/g, '');
 }
 
 function readStoredSelection(key, fallback) {
@@ -72,108 +64,16 @@ function persistSelection(key, value) {
   window.localStorage.setItem(key, value);
 }
 
-function pickValue(item, keys) {
-  for (const key of keys) {
-    if (item?.[key] !== undefined && item?.[key] !== null && item?.[key] !== '') {
-      return item[key];
-    }
-  }
-
-  const normalizedItem = Object.entries(item || {}).reduce((acc, [key, value]) => {
-    acc[normalizeHeader(key)] = value;
-    return acc;
-  }, {});
-
-  for (const key of keys) {
-    const normalizedKey = normalizeHeader(key);
-    if (normalizedItem[normalizedKey] !== undefined && normalizedItem[normalizedKey] !== null && normalizedItem[normalizedKey] !== '') {
-      return normalizedItem[normalizedKey];
-    }
-  }
-
-  return '';
-}
-
-function normalizeTransactions(payload) {
-  const candidate = payload?.data || payload?.rows || payload?.records || payload?.values || payload;
-  if (!candidate) return [];
-
-  const rawRows = Array.isArray(candidate)
-    ? candidate
-    : Array.isArray(candidate.data)
-      ? candidate.data
-      : Array.isArray(candidate.rows)
-        ? candidate.rows
-        : Array.isArray(candidate.records)
-          ? candidate.records
-          : [];
-
-  if (!Array.isArray(rawRows)) return [];
-
-  const headerAliases = {
-    id: ['id', 'ид', 'identifier'],
-    date: ['date', 'дата', 'datevalue'],
-    time: ['time', 'время', 'timevalue'],
-    person: ['person', 'кто', 'personname'],
-    type: ['type', 'тип', 'transactiontype'],
-    category: ['category', 'категория', 'categoryname'],
-    amount: ['amount', 'сумма', 'value', 'sum'],
-    comment: ['comment', 'комментарий', 'note', 'comments']
-  };
-
-  const headerLookup = Object.entries(headerAliases).reduce((acc, [field, aliases]) => {
-    aliases.forEach((alias) => {
-      acc[normalizeHeader(alias)] = field;
-    });
-    return acc;
-  }, {});
-
-  const firstRow = Array.isArray(rawRows[0]) ? rawRows[0] : null;
-  const hasHeaderRow = firstRow?.some((value) => {
-    const normalized = normalizeHeader(value);
-    return Boolean(normalized && headerLookup[normalized]);
-  });
-
-  const dataRows = hasHeaderRow ? rawRows.slice(1) : rawRows;
-
-  return dataRows.map((row, index) => {
-    const item = Array.isArray(row)
-      ? row.reduce((acc, value, rowIndex) => {
-          const headerValue = firstRow?.[rowIndex];
-          const field = headerValue ? headerLookup[normalizeHeader(headerValue)] : null;
-          if (field) {
-            acc[field] = value;
-          }
-          return acc;
-        }, {})
-      : row;
-
-    return {
-      id: pickValue(item, ['id', 'ID']) || `${index + 1}`,
-      date: pickValue(item, ['date', 'Дата', 'createdAt']) || '',
-      time: pickValue(item, ['time', 'Время']) || '',
-      person: normalizePersonValue(pickValue(item, ['person', 'Кто']) || ''),
-      type: pickValue(item, ['type', 'Тип']) || '',
-      category: pickValue(item, ['category', 'Категория']) || '',
-      amount: parseAmount(pickValue(item, ['amount', 'Сумма', 'value', 'sum']) || ''),
-      comment: pickValue(item, ['comment', 'Комментарий']) || ''
-    };
-  });
-}
-
 function App() {
   const { session, authUser, loading: authLoading, signOut } = useAuth();
   const { householdId, household, budgetUsers: familyUsers, loading: householdLoading, onboardingCompleted, createBudgetUser, updateBudgetUser, deleteBudgetUser, updateHouseholdName, completeOnboarding, restartOnboarding } = useHousehold();
   const [settings, setSettings] = useState(() => loadSettings());
-  const [categories, setCategories] = useState(() => loadCategories());
-  const [categoryBudgets, setCategoryBudgets] = useState(() => loadCategoryBudgets());
+  const [categories, setCategories] = useState([]);
+  const [categoryBudgets, setCategoryBudgets] = useState({});
   const [limitCategory, setLimitCategory] = useState(null);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [exchangeRate, setExchangeRate] = useState(() => settings.baseCurrency === settings.currency ? 1 : null);
-  const [startBalance, setStartBalance] = useState(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return stored ? Number(stored) : null;
-  });
+  const [startBalance, setStartBalance] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -192,6 +92,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState('');
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [selectedDayKey, setSelectedDayKey] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
@@ -222,43 +123,7 @@ function App() {
     }
 
     try {
-      const callbackName = `familyBudgetCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      const script = document.createElement('script');
-      const url = `${API_URL}?callback=${callbackName}`;
-
-      const payload = await new Promise((resolve, reject) => {
-        const timeout = window.setTimeout(() => {
-          cleanup();
-          reject(new Error('Ошибка загрузки'));
-        }, 8000);
-
-        const cleanup = () => {
-          window.clearTimeout(timeout);
-          delete window[callbackName];
-          script.remove();
-        };
-
-        window[callbackName] = (data) => {
-          cleanup();
-          resolve(data);
-        };
-
-        script.src = url;
-        script.onerror = () => {
-          cleanup();
-          reject(new Error('Ошибка загрузки'));
-        };
-        document.body.appendChild(script);
-      });
-
-      const activePersonNames = new Set(familyUsers.map((user) => user.name));
-      const parsed = normalizeTransactions(payload).map((transaction) => ({
-        ...transaction,
-        // A newly created user may intentionally reuse a deleted display name.
-        // An active configured user always wins over an old local deletion marker.
-        person: activePersonNames.has(transaction.person) ? transaction.person : (settings.deletedNames?.[transaction.person] || transaction.person),
-        category: settings.deletedCategoryNames?.[transaction.category] || transaction.category
-      }));
+      const parsed = await loadTransactions(householdId);
       setTransactions(parsed);
       if (showStatus) {
         setStatus(statusMessage);
@@ -266,7 +131,7 @@ function App() {
       return parsed;
     } catch (error) {
       console.error(error);
-      setStatus('Ошибка загрузки');
+      setStatus(describeSupabaseError(error, 'Ошибка загрузки операций'));
       return [];
     } finally {
       if (showLoading) {
@@ -281,9 +146,25 @@ function App() {
   }, [authUser, householdId]);
 
   useEffect(() => {
-    if (startBalance === null) return;
-    window.localStorage.setItem(STORAGE_KEY, String(startBalance));
-  }, [startBalance]);
+    if (!authUser || !householdId) return undefined;
+    let cancelled = false;
+    Promise.all([loadSupabaseCategories(householdId), loadCategoryLimits(householdId), loadHouseholdSettings(householdId)])
+      .then(([nextCategories, nextBudgets, nextSettings]) => {
+        if (cancelled) return;
+        setCategories(nextCategories);
+        setCategoryBudgets(nextBudgets);
+        if (nextSettings) {
+          setStartBalance(Number(nextSettings.starting_balance ?? 0));
+          setSettings((current) => ({
+            ...current,
+            currency: nextSettings.currency || current.currency,
+            baseCurrency: nextSettings.base_currency || current.baseCurrency
+          }));
+        }
+      })
+      .catch((error) => { console.error(error); if (!cancelled) setStatus(describeSupabaseError(error, 'Не удалось загрузить данные семьи')); });
+    return () => { cancelled = true; };
+  }, [authUser, householdId]);
 
   useEffect(() => {
     persistSettings(settings);
@@ -304,8 +185,6 @@ function App() {
     document.documentElement.style.setProperty('--theme-shadow', theme.shadow);
   }, [settings]);
 
-  useEffect(() => { persistCategories(categories); }, [categories]);
-  useEffect(() => { persistCategoryBudgets(categoryBudgets); }, [categoryBudgets]);
 
   useEffect(() => {
     let cancelled = false;
@@ -521,13 +400,62 @@ function App() {
     categories: [...new Set(transactions.map((transaction) => transaction.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'))
   }), [familyUsers, transactions]);
 
-  const handleBalanceSave = (event) => {
+  const handleBalanceSave = async (event) => {
     event.preventDefault();
     const value = Number(event.target.balance.value);
     if (!Number.isFinite(value)) return;
-    setStartBalance(value);
-    setView('home');
-    setStatus('Начальный баланс сохранён');
+    try {
+      await saveHouseholdSettings(householdId, { starting_balance: value });
+      setStartBalance(value);
+      setView('home');
+      setStatus('Начальный баланс сохранён');
+    } catch (error) {
+      console.error(error);
+      setStatus('Не удалось сохранить баланс');
+    }
+  };
+
+  const handleSettingsChange = async (nextSettings) => {
+    setSettings(nextSettings);
+    try {
+      await saveHouseholdSettings(householdId, {
+        currency: nextSettings.currency,
+        base_currency: nextSettings.baseCurrency
+      });
+    } catch (error) {
+      console.error(error);
+      setStatus('Не удалось сохранить настройки валюты');
+    }
+  };
+
+  const handleCategoriesChange = async (nextCategories) => {
+    setCategories(nextCategories);
+  };
+
+  const handleSaveCategory = async (category) => {
+    try {
+      const saved = await saveCategory(householdId, { ...category, position: categories.findIndex((item) => item.id === category.id) });
+      setCategories((current) => current.map((item) => item.id === category.id ? saved : item));
+      setStatus('Категория сохранена');
+      return saved;
+    } catch (error) {
+      console.error(error);
+      setStatus('Не удалось сохранить категорию');
+      void loadSupabaseCategories(householdId).then(setCategories);
+      throw error;
+    }
+  };
+
+  const handleCategoryLimitChange = async (categoryId, monthKey, value) => {
+    try {
+      await saveCategoryLimit(householdId, categoryId, monthKey, value);
+      setCategoryBudgets(await loadCategoryLimits(householdId));
+      setStatus(value ? 'Лимит сохранён' : 'Лимит убран');
+    } catch (error) {
+      console.error(error);
+      setStatus(describeSupabaseError(error, 'Не удалось сохранить лимит'));
+      throw error;
+    }
   };
 
   const handleHomeMonthChange = (month) => {
@@ -535,7 +463,19 @@ function App() {
     setSelectedMonth(month);
   };
 
-  const handleOpenAddSheet = (transaction = null) => {
+  const handleOpenAddSheet = () => {
+    setEditingTransaction(null);
+    setForm({
+      person: readStoredSelection(PERSON_STORAGE_KEY, familyUsers.find((user) => !user.archived)?.name || ''),
+      type: 'Расход',
+      category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, categories.find((category) => category.type === 'expense' && !category.archived)?.name || ''),
+      amount: '',
+      comment: ''
+    });
+    setIsAddSheetOpen(true);
+  };
+
+  const handleOpenEditSheet = (transaction) => {
     if (transaction) {
       setEditingTransaction(transaction);
       setForm({
@@ -545,21 +485,17 @@ function App() {
         amount: String(((transaction.amount || 0) * (exchangeRate || 1))),
         comment: transaction.comment || ''
       });
-    } else {
-      setEditingTransaction(null);
-      setForm({
-        person: readStoredSelection(PERSON_STORAGE_KEY, familyUsers.find((user) => !user.archived)?.name || ''),
-        type: 'Расход',
-        category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, categories.find((category) => category.type === 'expense' && !category.archived)?.name || ''),
-        amount: '',
-        comment: ''
-      });
     }
-    setIsAddSheetOpen(true);
+    setIsEditSheetOpen(true);
   };
 
   const handleCloseAddSheet = () => {
     setIsAddSheetOpen(false);
+    setEditingTransaction(null);
+  };
+
+  const handleCloseEditSheet = () => {
+    setIsEditSheetOpen(false);
     setEditingTransaction(null);
   };
 
@@ -627,22 +563,13 @@ function App() {
 
     setLoading(true);
     try {
-      await fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'delete',
-          id: selectedTransaction.id
-        })
-      });
+      await deleteTransaction(householdId, selectedTransaction.id);
+      setTransactions((current) => current.filter((transaction) => transaction.id !== selectedTransaction.id));
       setIsTransactionDetailOpen(false);
       setIsDeleteConfirmOpen(false);
       setSelectedTransaction(null);
       setStatus('Удалено');
-      window.setTimeout(() => {
-        void refreshTransactions({ showStatus: false });
-      }, 1000);
+      setLoading(false);
     } catch (error) {
       console.error(error);
       setStatus(error.message || 'Не удалось удалить');
@@ -661,58 +588,31 @@ function App() {
       return;
     }
     const amount = enteredAmount / exchangeRate;
-
     const isEditing = Boolean(editingTransaction);
-    const payload = isEditing
-      ? {
-          action: 'update',
-          id: editingTransaction.id,
-          person: form.person,
-          type: form.type,
-          category: form.category,
-          amount,
-          comment: form.comment
-        }
-      : {
-          action: 'create',
-          person: form.person,
-          type: form.type,
-          category: form.category,
-          amount,
-          comment: form.comment
-        };
+    const user = familyUsers.find((item) => item.name === form.person);
+    const category = categories.find((item) => item.name === form.category);
+    if (!user || !category) { setStatus('Выберите существующего участника и категорию'); return; }
+    const storedDate = isEditing ? parseDate(editingTransaction.date) : null;
+    const storedTime = isEditing ? parseTimeValue(editingTransaction.time) : null;
+    if (storedDate && storedTime) storedDate.setHours(storedTime.getHours(), storedTime.getMinutes(), 0, 0);
+    const payload = { userId: user.id, categoryId: category.id, createdBy: authUser.id, type: form.type, amount, comment: form.comment, occurredAt: storedDate?.toISOString() || new Date().toISOString() };
 
     setIsSubmitting(true);
     try {
-      const knownIds = new Set(transactions.map((transaction) => String(transaction.id)));
-      await fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-
-      setStatus('Проверяю сохранение…');
-      let confirmed = false;
-      for (let attempt = 0; attempt < 3 && !confirmed; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 900));
-        const refreshed = await refreshTransactions({ showStatus: false, showLoading: false });
-        const matchesPayload = (transaction) => transaction.person === form.person && transaction.type === form.type && transaction.category === form.category && Math.abs(transaction.amount - amount) < 0.0001 && transaction.comment === form.comment;
-        confirmed = isEditing
-          ? refreshed.some((transaction) => String(transaction.id) === String(editingTransaction.id) && matchesPayload(transaction))
-          : refreshed.some((transaction) => !knownIds.has(String(transaction.id)) && matchesPayload(transaction));
-      }
+      const saved = isEditing ? await updateTransaction(householdId, editingTransaction.id, payload) : await createTransaction(householdId, payload);
+      setTransactions((current) => isEditing ? current.map((transaction) => transaction.id === saved.id ? saved : transaction) : [saved, ...current]);
 
       setIsAddSheetOpen(false);
+      setIsEditSheetOpen(false);
       setIsTransactionDetailOpen(false);
       setEditingTransaction(null);
       setSelectedTransaction(null);
       setForm((prev) => ({ ...prev, amount: '', comment: '' }));
       setView('home');
-      setStatus(confirmed ? (isEditing ? 'Изменено' : 'Добавлено') : 'Операция отправлена, но пока не подтверждена');
+      setStatus(isEditing ? 'Изменено' : 'Добавлено');
     } catch (error) {
       console.error(error);
-      setStatus('Ошибка сохранения');
+      setStatus(describeSupabaseError(error, 'Ошибка сохранения операции'));
     } finally {
       setIsSubmitting(false);
     }
@@ -722,16 +622,20 @@ function App() {
     try {
       const usersToCreate = users.filter((user) => !familyUsers.some((existing) => existing.name === user.name));
       await Promise.all(usersToCreate.map((user) => createBudgetUser(user)));
+      const createdCategories = categories.length ? categories : await createCategories(householdId, onboardingCategories);
+      await saveHouseholdSettings(householdId, {
+        currency,
+        base_currency: baseCurrency,
+        starting_balance: balance
+      });
       setStartBalance(balance);
-      setCategories(onboardingCategories);
+      setCategories(createdCategories);
       setSettings({ ...settings, baseCurrency, currency });
       await completeOnboarding();
       setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
     } catch (error) {
       console.error(error);
-      const message = /onboarding_completed|column/i.test(error?.message || '')
-        ? 'В Supabase нужно применить миграцию onboarding_completed, затем повторите сохранение.'
-        : 'Не удалось сохранить настройку семьи. Проверьте подключение и попробуйте ещё раз.';
+      const message = describeSupabaseError(error, 'Не удалось сохранить настройку семьи');
       setStatus(message);
       throw new Error(message);
     }
@@ -839,6 +743,24 @@ function App() {
         onClose={handleCloseAddSheet}
         onSubmit={handleSubmit}
         onReceiptClick={() => setStatus('Добавление чеков появится позже')}
+      />
+    );
+  };
+
+  const renderEditSheet = () => {
+    if (!isEditSheetOpen || !editingTransaction) return null;
+    return (
+      <TransactionEditSheet
+        form={form}
+        users={familyUsers}
+        categories={categories}
+        currencyLabel={settings.currency}
+        isSubmitting={isSubmitting}
+        isRateLoading={!exchangeRate}
+        onChange={handleFormChange}
+        onCategorySelect={handleCategorySelect}
+        onClose={handleCloseEditSheet}
+        onSubmit={handleSubmit}
       />
     );
   };
@@ -983,7 +905,7 @@ function App() {
             <div className="sheet-actions detail-actions">
               <button className="ghost-btn" type="button" onClick={() => {
                 handleCloseTransactionDetails();
-                handleOpenAddSheet(selectedTransaction);
+                handleOpenEditSheet(selectedTransaction);
               }}>
                 ✏️ Изменить
               </button>
@@ -1027,9 +949,18 @@ function App() {
   const renderSettings = () => <SettingsPage
     startBalance={startBalance}
     exchangeRate={exchangeRate}
-    onSaveBalance={(value) => { setStartBalance(value); setStatus('Начальный баланс сохранён'); }}
+    onSaveBalance={async (value) => {
+      try {
+        await saveHouseholdSettings(householdId, { starting_balance: value });
+        setStartBalance(value);
+        setStatus('Начальный баланс сохранён');
+      } catch (error) {
+        console.error(error);
+        setStatus('Не удалось сохранить баланс');
+      }
+    }}
     settings={settings}
-    onSettingsChange={setSettings}
+    onSettingsChange={handleSettingsChange}
     transactions={transactions}
     users={familyUsers}
     household={household}
@@ -1041,12 +972,13 @@ function App() {
         setStatus('Нужен хотя бы один пользователь');
         return;
       }
-      const names = Array.from(new Set([user.name, ...(user.previousNames || user.legacyNames || [])]));
-      const deletedNames = Object.fromEntries(names.map((name) => [name, `Удалён ${user.name}`]));
-      await deleteBudgetUser(user.id);
-      setSettings({ ...settings, deletedNames: { ...settings.deletedNames, ...deletedNames } });
-      setTransactions((current) => current.map((transaction) => deletedNames[transaction.person] ? { ...transaction, person: deletedNames[transaction.person] } : transaction));
-      setStatus(`Пользователь ${user.name} удалён`);
+      try {
+        await deleteBudgetUser(user.id);
+        setStatus(`Пользователь ${user.name} удалён`);
+      } catch (error) {
+        console.error(error);
+        setStatus('Не удалось удалить пользователя с операциями');
+      }
     }}
     onStatus={setStatus}
     onExport={() => { try { exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } }}
@@ -1064,7 +996,7 @@ function App() {
   const renderCategoryLimitSheet = () => {
     if (!limitCategory) return null;
     const current = homeCategoryBudgets.find((category) => category.id === limitCategory.id) || limitCategory;
-    return <CategoryLimitSheet category={current} monthLabel={getMonthLabel(homeSelectedMonth)} spent={current.spent || 0} limit={current.limit} percent={current.percent || 0} formatCurrency={formatCurrency} onClose={() => setLimitCategory(null)} onSave={(value) => { setCategoryBudgets((currentBudgets) => setCategoryMonthLimit(currentBudgets, current.id, homeSelectedMonth, value)); setLimitCategory(null); setStatus('Лимит сохранён'); }} onRemove={() => { setCategoryBudgets((currentBudgets) => setCategoryMonthLimit(currentBudgets, current.id, homeSelectedMonth, '')); setLimitCategory(null); setStatus('Лимит убран'); }} />;
+    return <CategoryLimitSheet category={current} monthLabel={getMonthLabel(homeSelectedMonth)} spent={current.spent || 0} limit={current.limit} percent={current.percent || 0} formatCurrency={formatCurrency} onClose={() => setLimitCategory(null)} onSave={async (value) => { await handleCategoryLimitChange(current.id, homeSelectedMonth, value); setLimitCategory(null); }} onRemove={async () => { await handleCategoryLimitChange(current.id, homeSelectedMonth, ''); setLimitCategory(null); }} />;
   };
 
   const renderBottomNavigation = () => (
@@ -1135,8 +1067,9 @@ function App() {
       {view === 'journal' && renderJournal()}
       {view === 'settings' && renderSettings()}
       {renderAddSheet()}
+      {renderEditSheet()}
       {renderCategoryLimitSheet()}
-      {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} formatCurrency={formatCurrency} onChange={setCategories} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => setCategoryBudgets((current) => setCategoryDefaultLimit(current, categoryId, value))} onDeleteCategory={(category) => { const names = Array.from(new Set([category.name, ...(category.previousNames || [])])); const deletedCategoryNames = Object.fromEntries(names.map((name) => [name, `Удалённая категория ${category.name}`])); setCategories((current) => current.filter((item) => item.id !== category.id)); setSettings((current) => ({ ...current, deletedCategoryNames: { ...current.deletedCategoryNames, ...deletedCategoryNames } })); setTransactions((current) => current.map((transaction) => deletedCategoryNames[transaction.category] ? { ...transaction, category: deletedCategoryNames[transaction.category] } : transaction)); setStatus(`Категория ${category.name} удалена`); }} /> : null}
+      {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} onChange={handleCategoriesChange} onSaveCategory={handleSaveCategory} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => handleCategoryLimitChange(categoryId, homeSelectedMonth, value)} onDeleteCategory={async (category) => { try { if (/^[0-9a-f-]{36}$/i.test(category.id)) await deleteCategory(householdId, category.id); setCategories((current) => current.filter((item) => item.id !== category.id)); setStatus(`Категория ${category.name} удалена`); } catch (error) { console.error(error); setStatus('Не удалось удалить категорию'); } }} /> : null}
       {renderCalendarDaySheet()}
       {renderTransactionDetailSheet()}
       {isDeleteConfirmOpen && selectedTransaction ? (
