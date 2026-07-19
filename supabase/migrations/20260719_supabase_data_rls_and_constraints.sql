@@ -10,6 +10,7 @@ alter table public.household_settings
 
 alter table public.transactions
   add column if not exists household_id uuid,
+  add column if not exists created_by uuid,
   add column if not exists budget_user_id uuid,
   add column if not exists category_id uuid,
   add column if not exists type text,

@@ -23,7 +23,7 @@ export async function loadTransactions(householdId) {
   return (data || []).map(mapTransaction);
 }
 export async function createTransaction(householdId, payload) {
-  const { data, error } = await supabase.from('transactions').insert({ household_id: householdId, budget_user_id: payload.userId, category_id: payload.categoryId, type: toDatabaseType(payload.type), amount: payload.amount, comment: payload.comment || '', ...transactionDateFields(payload.occurredAt) }).select('id,type,amount,comment,occurred_at,budget_users(name),categories(name)').single();
+  const { data, error } = await supabase.from('transactions').insert({ household_id: householdId, created_by: payload.createdBy, budget_user_id: payload.userId, category_id: payload.categoryId, type: toDatabaseType(payload.type), amount: payload.amount, comment: payload.comment || '', ...transactionDateFields(payload.occurredAt) }).select('id,type,amount,comment,occurred_at,budget_users(name),categories(name)').single();
   if (error) throwSupabaseError(error, 'transactions.create');
   return mapTransaction(data);
 }

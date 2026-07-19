@@ -582,7 +582,7 @@ function App() {
     const storedDate = isEditing ? parseDate(editingTransaction.date) : null;
     const storedTime = isEditing ? parseTimeValue(editingTransaction.time) : null;
     if (storedDate && storedTime) storedDate.setHours(storedTime.getHours(), storedTime.getMinutes(), 0, 0);
-    const payload = { userId: user.id, categoryId: category.id, type: form.type, amount, comment: form.comment, occurredAt: storedDate?.toISOString() || new Date().toISOString() };
+    const payload = { userId: user.id, categoryId: category.id, createdBy: authUser.id, type: form.type, amount, comment: form.comment, occurredAt: storedDate?.toISOString() || new Date().toISOString() };
 
     setIsSubmitting(true);
     try {
