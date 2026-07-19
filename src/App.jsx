@@ -19,12 +19,12 @@ import { exportTransactionsToXlsx } from './utils/exportTransactions';
 import { getExchangeRate } from './utils/exchangeRates';
 import { getBalancePoints } from './utils/balanceHistory';
 import { findCategory, getCategoryLimit, loadCategories, persistCategories, loadCategoryBudgets, persistCategoryBudgets, setCategoryDefaultLimit, setCategoryMonthLimit } from './utils/categoryStorage';
+import { createTransaction, deleteTransaction, loadTransactions, updateTransaction } from './services/transactionsService';
 import { useAuth } from './contexts/AuthContext';
 import { useHousehold } from './contexts/HouseholdContext';
 import AuthPage from './pages/AuthPage';
 import HouseholdSetupPage from './pages/HouseholdSetupPage';
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbwrEtsTaCzgaF0OGDEApNa1WJd-Yof0PUXYhiOodLS9_Tx0Rx9vYQHXrd0CKMyQ7AeO/exec';
 const STORAGE_KEY = 'startBalance';
 const PERSON_STORAGE_KEY = 'family-budget-last-person';
 const EXPENSE_CATEGORY_STORAGE_KEY = 'family-budget-last-expense-category';
@@ -222,43 +222,7 @@ function App() {
     }
 
     try {
-      const callbackName = `familyBudgetCallback_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      const script = document.createElement('script');
-      const url = `${API_URL}?callback=${callbackName}`;
-
-      const payload = await new Promise((resolve, reject) => {
-        const timeout = window.setTimeout(() => {
-          cleanup();
-          reject(new Error('Ошибка загрузки'));
-        }, 8000);
-
-        const cleanup = () => {
-          window.clearTimeout(timeout);
-          delete window[callbackName];
-          script.remove();
-        };
-
-        window[callbackName] = (data) => {
-          cleanup();
-          resolve(data);
-        };
-
-        script.src = url;
-        script.onerror = () => {
-          cleanup();
-          reject(new Error('Ошибка загрузки'));
-        };
-        document.body.appendChild(script);
-      });
-
-      const activePersonNames = new Set(familyUsers.map((user) => user.name));
-      const parsed = normalizeTransactions(payload).map((transaction) => ({
-        ...transaction,
-        // A newly created user may intentionally reuse a deleted display name.
-        // An active configured user always wins over an old local deletion marker.
-        person: activePersonNames.has(transaction.person) ? transaction.person : (settings.deletedNames?.[transaction.person] || transaction.person),
-        category: settings.deletedCategoryNames?.[transaction.category] || transaction.category
-      }));
+      const parsed = await loadTransactions(householdId);
       setTransactions(parsed);
       if (showStatus) {
         setStatus(statusMessage);
@@ -627,22 +591,13 @@ function App() {
 
     setLoading(true);
     try {
-      await fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({
-          action: 'delete',
-          id: selectedTransaction.id
-        })
-      });
+      await deleteTransaction(householdId, selectedTransaction.id);
+      setTransactions((current) => current.filter((transaction) => transaction.id !== selectedTransaction.id));
       setIsTransactionDetailOpen(false);
       setIsDeleteConfirmOpen(false);
       setSelectedTransaction(null);
       setStatus('Удалено');
-      window.setTimeout(() => {
-        void refreshTransactions({ showStatus: false });
-      }, 1000);
+      setLoading(false);
     } catch (error) {
       console.error(error);
       setStatus(error.message || 'Не удалось удалить');
@@ -661,47 +616,16 @@ function App() {
       return;
     }
     const amount = enteredAmount / exchangeRate;
-
     const isEditing = Boolean(editingTransaction);
-    const payload = isEditing
-      ? {
-          action: 'update',
-          id: editingTransaction.id,
-          person: form.person,
-          type: form.type,
-          category: form.category,
-          amount,
-          comment: form.comment
-        }
-      : {
-          action: 'create',
-          person: form.person,
-          type: form.type,
-          category: form.category,
-          amount,
-          comment: form.comment
-        };
+    const user = familyUsers.find((item) => item.name === form.person);
+    const category = categories.find((item) => item.name === form.category);
+    if (!user || !category) { setStatus('Выберите существующего участника и категорию'); return; }
+    const payload = { userId: user.id, categoryId: category.id, type: form.type, amount, comment: form.comment, occurredAt: isEditing ? new Date(`${editingTransaction.date} ${editingTransaction.time}`).toISOString() : new Date().toISOString() };
 
     setIsSubmitting(true);
     try {
-      const knownIds = new Set(transactions.map((transaction) => String(transaction.id)));
-      await fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-
-      setStatus('Проверяю сохранение…');
-      let confirmed = false;
-      for (let attempt = 0; attempt < 3 && !confirmed; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 900));
-        const refreshed = await refreshTransactions({ showStatus: false, showLoading: false });
-        const matchesPayload = (transaction) => transaction.person === form.person && transaction.type === form.type && transaction.category === form.category && Math.abs(transaction.amount - amount) < 0.0001 && transaction.comment === form.comment;
-        confirmed = isEditing
-          ? refreshed.some((transaction) => String(transaction.id) === String(editingTransaction.id) && matchesPayload(transaction))
-          : refreshed.some((transaction) => !knownIds.has(String(transaction.id)) && matchesPayload(transaction));
-      }
+      const saved = isEditing ? await updateTransaction(householdId, editingTransaction.id, payload) : await createTransaction(householdId, payload);
+      setTransactions((current) => isEditing ? current.map((transaction) => transaction.id === saved.id ? saved : transaction) : [saved, ...current]);
 
       setIsAddSheetOpen(false);
       setIsTransactionDetailOpen(false);
@@ -709,7 +633,7 @@ function App() {
       setSelectedTransaction(null);
       setForm((prev) => ({ ...prev, amount: '', comment: '' }));
       setView('home');
-      setStatus(confirmed ? (isEditing ? 'Изменено' : 'Добавлено') : 'Операция отправлена, но пока не подтверждена');
+      setStatus(isEditing ? 'Изменено' : 'Добавлено');
     } catch (error) {
       console.error(error);
       setStatus('Ошибка сохранения');

@@ -1,0 +1,5 @@
+import { supabase } from '../lib/supabase';
+export const loadBudgetUsers = async (householdId) => { const { data, error } = await supabase.from('budget_users').select('id,name,avatar,created_at').eq('household_id', householdId).order('created_at'); if (error) throw error; return data || []; };
+export const createBudgetUser = async (householdId, user) => { const { data, error } = await supabase.from('budget_users').insert({ household_id: householdId, name: user.name, avatar: user.avatar }).select('id,name,avatar,created_at').single(); if (error) throw error; return data; };
+export const updateBudgetUser = async (householdId, id, user) => { const { data, error } = await supabase.from('budget_users').update({ name: user.name, avatar: user.avatar }).eq('id', id).eq('household_id', householdId).select('id,name,avatar,created_at').single(); if (error) throw error; return data; };
+export const removeBudgetUser = async (householdId, id) => { const { error } = await supabase.from('budget_users').delete().eq('id', id).eq('household_id', householdId); if (error) throw error; };
