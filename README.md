@@ -9,7 +9,7 @@
 - Экран добавления операции с выбором человека, типа, категории и суммой
 - Экран статистики с ежемесячными итогами и разбивкой по категориям
 - PWA-совместимость с manifest и service worker
-- Интеграция с Google Apps Script API через JSONP для GET и fetch для POST
+- Авторизация и данные семьи через Supabase с RLS-изоляцией
 
 ## Установка
 
@@ -55,8 +55,4 @@ npm run deploy
 
 ## Примечание
 
-Приложение использует Google Apps Script API по адресу:
-
-https://script.google.com/macros/s/AKfycbwrEtsTaCzgaF0OGDEApNa1WJd-Yof0Rx9vYQHXrd0CKMyQ7AeO/exec
-
-Для корректной работы нужен доступ к API и корректная обработка ответа от Google Apps Script.
+Для запуска укажите `VITE_SUPABASE_URL` и `VITE_SUPABASE_PUBLISHABLE_KEY` в `.env.local`.

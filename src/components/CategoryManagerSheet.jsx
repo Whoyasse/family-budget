@@ -2,7 +2,7 @@ import { useState } from 'react';
 
 const ICONS = ['🛒', '🍔', '☕', '⛽', '🚬', '🏠', '🚗', '💊', '👕', '🎮', '📦', '💼', '💰', '🎁', '📈', '🏦', '✈️', '🐶'];
 
-function CategoryManagerSheet({ categories, budgets, selectedMonth, formatCurrency, onChange, onClose, onStatus, onDeleteCategory, onUpdateLimit }) {
+function CategoryManagerSheet({ categories, budgets, selectedMonth, formatCurrency, onChange, onSaveCategory, onClose, onStatus, onDeleteCategory, onUpdateLimit }) {
   const [editingId, setEditingId] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const editing = categories.find((category) => category.id === editingId);
@@ -11,7 +11,7 @@ function CategoryManagerSheet({ categories, budgets, selectedMonth, formatCurren
     const name = draft.name.trim();
     if (!name) return onStatus('Введите название категории');
     if (categories.some((category) => category.id !== draft.id && category.type === draft.type && category.name.toLowerCase() === name.toLowerCase())) return onStatus('Категория с таким названием уже есть');
-    onChange(categories.map((category) => category.id === draft.id ? { ...draft, name, label: name, previousNames: Array.from(new Set([...(category.previousNames || []), category.name, name])) } : category));
+    onSaveCategory({ ...draft, name, label: name, previousNames: Array.from(new Set([...(draft.previousNames || []), name])) });
     setEditingId(null);
   };
   const create = () => {

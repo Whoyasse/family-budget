@@ -1937,7 +1937,7 @@ button.category-row,
   background: var(--accent-primary) !important;
 }
 
-/* Sheets used a legacy dark gradient, so remove that image layer rather than only changing its color. */
+/* Remove the legacy dark gradient image layer rather than only changing its color. */
 .sheet-card,
 .wizard-sheet {
   background: var(--theme-surface) !important;
