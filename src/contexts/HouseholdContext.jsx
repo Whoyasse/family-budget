@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { createBudgetUser as createBudgetUserRecord, loadBudgetUsers as loadBudgetUserRecords, removeBudgetUser, updateBudgetUser as updateBudgetUserRecord } from '../services/budgetUsersService';
+import { loadHouseholdSettings, saveHouseholdSettings } from '../services/settingsService';
+import { getSupabaseErrorDetails } from '../services/supabaseError';
 import { useAuth } from './AuthContext';
 
 const HouseholdContext = createContext(null);
@@ -69,40 +71,31 @@ export function HouseholdProvider({ children }) {
     }
     setState((current) => ({ ...current, loading: true }));
     const { data, error } = await supabase.from('household_members').select('household_id, role, households(id, name)').eq('auth_user_id', authUser.id).limit(1).maybeSingle();
-    if (error) console.error(error);
+    if (error) getSupabaseErrorDetails(error, 'household_members.load');
     let budgetUsers = [];
     let onboardingCompleted = false;
     if (data?.household_id) {
       try {
-        const { data: settingsRow, error: settingsError } = await supabase.from('household_settings').select('onboarding_completed').eq('household_id', data.household_id).maybeSingle();
-        if (settingsError) throw settingsError;
+        const settingsRow = await loadHouseholdSettings(data.household_id);
         onboardingCompleted = settingsRow?.onboarding_completed ?? false;
         if (!settingsRow) {
-          const { error: initializeError } = await supabase.from('household_settings').upsert({ household_id: data.household_id, onboarding_completed: onboardingCompleted }, { onConflict: 'household_id' });
-          if (initializeError) throw initializeError;
+          await saveHouseholdSettings(data.household_id, { onboarding_completed: false });
         }
         budgetUsers = await loadBudgetUsers(data.household_id);
-      } catch (loadError) { console.error(loadError); }
+      } catch (loadError) { getSupabaseErrorDetails(loadError.supabase || loadError, 'household.bootstrap'); }
     }
     setState({ householdId: data?.household_id || null, household: data?.households || null, membershipRole: data?.role || null, budgetUsers, loading: false, onboardingCompleted });
   }, [authUser, loadBudgetUsers]);
 
   const completeOnboarding = useCallback(async () => {
     if (!state.householdId) throw new Error('Семья не найдена.');
-    const { data, error } = await supabase
-      .from('household_settings')
-      .update({ onboarding_completed: true })
-      .eq('household_id', state.householdId)
-      .select('household_id, onboarding_completed')
-      .maybeSingle();
-    if (error) throw error;
+    const data = await saveHouseholdSettings(state.householdId, { onboarding_completed: true });
     if (!data?.onboarding_completed) throw new Error('Не удалось подтвердить завершение настройки семьи.');
     setState((current) => ({ ...current, onboardingCompleted: true }));
   }, [state.householdId]);
   const restartOnboarding = useCallback(async () => {
     if (!state.householdId) throw new Error('Семья не найдена.');
-    const { error } = await supabase.from('household_settings').update({ onboarding_completed: false }).eq('household_id', state.householdId);
-    if (error) throw error;
+    await saveHouseholdSettings(state.householdId, { onboarding_completed: false });
     setState((current) => ({ ...current, onboardingCompleted: false }));
   }, [state.householdId]);
   useEffect(() => { refreshHousehold(); }, [refreshHousehold]);

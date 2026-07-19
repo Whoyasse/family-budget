@@ -22,6 +22,7 @@ import { getCategoryLimit } from './utils/categoryStorage';
 import { createTransaction, deleteTransaction, loadTransactions, updateTransaction } from './services/transactionsService';
 import { createCategories, deleteCategory, loadCategories as loadSupabaseCategories, loadCategoryLimits, saveCategory, saveCategoryLimit } from './services/categoriesService';
 import { loadHouseholdSettings, saveHouseholdSettings } from './services/settingsService';
+import { describeSupabaseError } from './services/supabaseError';
 import { useAuth } from './contexts/AuthContext';
 import { useHousehold } from './contexts/HouseholdContext';
 import AuthPage from './pages/AuthPage';
@@ -128,7 +129,7 @@ function App() {
       return parsed;
     } catch (error) {
       console.error(error);
-      setStatus('Ошибка загрузки');
+      setStatus(describeSupabaseError(error, 'Ошибка загрузки операций'));
       return [];
     } finally {
       if (showLoading) {
@@ -159,7 +160,7 @@ function App() {
           }));
         }
       })
-      .catch((error) => { console.error(error); if (!cancelled) setStatus('Не удалось загрузить данные семьи'); });
+      .catch((error) => { console.error(error); if (!cancelled) setStatus(describeSupabaseError(error, 'Не удалось загрузить данные семьи')); });
     return () => { cancelled = true; };
   }, [authUser, householdId]);
 
@@ -597,7 +598,7 @@ function App() {
       setStatus(isEditing ? 'Изменено' : 'Добавлено');
     } catch (error) {
       console.error(error);
-      setStatus('Ошибка сохранения');
+      setStatus(describeSupabaseError(error, 'Ошибка сохранения операции'));
     } finally {
       setIsSubmitting(false);
     }
@@ -620,9 +621,7 @@ function App() {
       setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
     } catch (error) {
       console.error(error);
-      const message = /onboarding_completed|column/i.test(error?.message || '')
-        ? 'В Supabase нужно применить миграцию onboarding_completed, затем повторите сохранение.'
-        : 'Не удалось сохранить настройку семьи. Проверьте подключение и попробуйте ещё раз.';
+      const message = describeSupabaseError(error, 'Не удалось сохранить настройку семьи');
       setStatus(message);
       throw new Error(message);
     }

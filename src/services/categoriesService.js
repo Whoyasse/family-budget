@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { throwSupabaseError } from './supabaseError';
 
 const mapCategory = (row) => ({
   id: row.id,
@@ -20,7 +21,7 @@ export async function loadCategories(householdId) {
     .select(fields)
     .eq('household_id', householdId)
     .order('position');
-  if (error) throw error;
+  if (error) throwSupabaseError(error, 'categories.load');
   return (data || []).map(mapCategory);
 }
 
@@ -35,7 +36,7 @@ export async function createCategories(householdId, categories) {
     position
   }));
   const { data, error } = await supabase.from('categories').insert(rows).select(fields);
-  if (error) throw error;
+  if (error) throwSupabaseError(error, 'categories.create');
   return (data || []).map(mapCategory);
 }
 
@@ -53,13 +54,13 @@ export async function saveCategory(householdId, category) {
     ? supabase.from('categories').update(values).eq('id', category.id).eq('household_id', householdId)
     : supabase.from('categories').insert(values);
   const { data, error } = await query.select(fields).single();
-  if (error) throw error;
+  if (error) throwSupabaseError(error, 'categories.save');
   return mapCategory(data);
 }
 
 export async function deleteCategory(householdId, id) {
   const { error } = await supabase.from('categories').delete().eq('id', id).eq('household_id', householdId);
-  if (error) throw error;
+  if (error) throwSupabaseError(error, 'categories.delete');
 }
 
 export async function loadCategoryLimits(householdId) {
@@ -67,7 +68,7 @@ export async function loadCategoryLimits(householdId) {
     .from('category_limits')
     .select('category_id,month_key,amount')
     .eq('household_id', householdId);
-  if (error) throw error;
+  if (error) throwSupabaseError(error, 'category_limits.load');
   return (data || []).reduce((limits, row) => {
     const current = limits[row.category_id] || { monthlyOverrides: {} };
     if (row.month_key) current.monthlyOverrides[row.month_key] = Number(row.amount);
@@ -83,17 +84,17 @@ export async function saveCategoryLimit(householdId, categoryId, monthKey, value
   const deleteQuery = monthKey ? baseQuery.eq('month_key', monthKey) : baseQuery.is('month_key', null);
   if (!Number.isFinite(amount) || amount <= 0) {
     const { error } = await deleteQuery;
-    if (error) throw error;
+    if (error) throwSupabaseError(error, 'category_limits.delete');
     return null;
   }
   const { error: deleteError } = await deleteQuery;
-  if (deleteError) throw deleteError;
+  if (deleteError) throwSupabaseError(deleteError, 'category_limits.replace');
   const { data, error } = await supabase.from('category_limits').insert({
     household_id: householdId,
     category_id: categoryId,
     month_key: monthKey || null,
     amount
   }).select('category_id,month_key,amount').single();
-  if (error) throw error;
+  if (error) throwSupabaseError(error, 'category_limits.create');
   return data;
 }
