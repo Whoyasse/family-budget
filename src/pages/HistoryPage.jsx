@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
-import { getCategoryIcon } from '../data/categories';
+import { useMemo, useState } from 'react';
+import { parseDate } from '../utils/date';
 
 function formatHistoryGroupLabel(dateValue) {
-  const parsed = new Date(dateValue);
+  const parsed = parseDate(dateValue);
+  if (!parsed) return 'Без даты';
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const startOfYesterday = new Date(startOfToday);
@@ -19,14 +20,22 @@ function HistoryPage({
   transactions,
   searchValue,
   onSearchChange,
+  filters,
+  filterOptions,
+  onFiltersChange,
   onSelectTransaction,
   formatCurrency,
   formatTransactionDate,
   getCategoryIconValue
 }) {
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const updateFilter = (name, value) => onFiltersChange({ ...filters, [name]: value });
+  const clearFilters = () => onFiltersChange({ person: '', type: '', category: '', dateFrom: '', dateTo: '', amountFrom: '', amountTo: '' });
+  const activeFilterCount = Object.values(filters).filter(Boolean).length;
   const groupedTransactions = useMemo(() => {
     const groups = transactions.reduce((acc, transaction) => {
-      const key = transaction.date ? new Date(transaction.date).toDateString() : 'unknown';
+      const parsedDate = parseDate(transaction.date);
+      const key = parsedDate ? `${parsedDate.getFullYear()}-${parsedDate.getMonth()}-${parsedDate.getDate()}` : 'unknown';
       if (!acc[key]) {
         acc[key] = [];
       }
@@ -38,9 +47,9 @@ function HistoryPage({
       .map(([key, items]) => ({
         key,
         label: formatHistoryGroupLabel(items[0].date),
-        transactions: items.sort((a, b) => new Date(b.date) - new Date(a.date))
+        transactions: items.sort((a, b) => (parseDate(b.date)?.getTime() || 0) - (parseDate(a.date)?.getTime() || 0))
       }))
-      .sort((a, b) => new Date(b.transactions[0].date) - new Date(a.transactions[0].date));
+      .sort((a, b) => (parseDate(b.transactions[0].date)?.getTime() || 0) - (parseDate(a.transactions[0].date)?.getTime() || 0));
   }, [transactions]);
 
   return (
@@ -52,16 +61,29 @@ function HistoryPage({
         </div>
       </header>
 
-      <section className="card">
+      <section className="card history-filters">
         <label className="field">
           <span>Поиск</span>
           <input
             type="text"
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder="Категория или комментарий"
+            placeholder="Дата, категория или поиск"
           />
         </label>
+        <button type="button" className={`history-filter-toggle ${activeFilterCount ? 'active' : ''}`} onClick={() => setIsFiltersOpen((current) => !current)}>
+          {'⚙️ Фильтры'}{activeFilterCount ? ` · ${activeFilterCount}` : ''}
+        </button>
+        {isFiltersOpen ? <div className="history-filter-panel">
+          <label className="field"><span>Человек</span><select value={filters.person} onChange={(event) => updateFilter('person', event.target.value)}><option value="">Все</option>{filterOptions.people.map((person) => <option key={person.id} value={person.id}>{person.avatar} {person.name}{person.archived ? ' · Архив' : ''}</option>)}</select></label>
+          <label className="field"><span>Тип операции</span><select value={filters.type} onChange={(event) => updateFilter('type', event.target.value)}><option value="">Все</option><option value="Расход">Расход</option><option value="Доход">Доход</option></select></label>
+          <label className="field history-filter-panel__wide"><span>Категория</span><select value={filters.category} onChange={(event) => updateFilter('category', event.target.value)}><option value="">Все категории</option>{filterOptions.categories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          <label className="field"><span>Дата от</span><input type="date" value={filters.dateFrom} onChange={(event) => updateFilter('dateFrom', event.target.value)} /></label>
+          <label className="field"><span>Дата до</span><input type="date" value={filters.dateTo} onChange={(event) => updateFilter('dateTo', event.target.value)} /></label>
+          <label className="field"><span>Сумма от</span><input type="number" min="0" inputMode="decimal" value={filters.amountFrom} onChange={(event) => updateFilter('amountFrom', event.target.value)} placeholder="0" /></label>
+          <label className="field"><span>Сумма до</span><input type="number" min="0" inputMode="decimal" value={filters.amountTo} onChange={(event) => updateFilter('amountTo', event.target.value)} placeholder="0" /></label>
+          <button type="button" className="text-action history-filter-panel__clear" onClick={clearFilters}>Очистить фильтры</button>
+        </div> : null}
       </section>
 
       <div className="stack">
