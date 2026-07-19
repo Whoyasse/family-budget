@@ -692,6 +692,7 @@ button.category-row {
 .onboarding-step::-webkit-scrollbar { width: 0; height: 0; }
 .onboarding-step h2 { margin: 0; }
 .onboarding-step .category-grid { padding-bottom: 2px; }
+.onboarding-error { border: 1px solid rgba(251, 113, 133, .7); border-radius: 12px; background: rgba(251, 113, 133, .12); color: var(--theme-text); font-size: .9rem; line-height: 1.4; padding: 10px 12px; }
 .onboarding-actions { display: flex; justify-content: space-between; gap: 10px; padding-top: 14px; border-top: 1px solid var(--theme-border); }
 .onboarding-actions > * { min-width: 102px; }
 .onboarding-check { color: #cfeedd; }

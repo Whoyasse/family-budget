@@ -719,12 +719,22 @@ function App() {
   };
 
   const renderWelcome = () => <OnboardingWizard onComplete={async ({ baseCurrency, currency, balance, users, categories: onboardingCategories }) => {
-    setStartBalance(balance);
-    setCategories(onboardingCategories);
-    await Promise.all(users.map((user) => createBudgetUser(user)));
-    setSettings({ ...settings, baseCurrency, currency });
-    await completeOnboarding();
-    setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
+    try {
+      const usersToCreate = users.filter((user) => !familyUsers.some((existing) => existing.name === user.name));
+      await Promise.all(usersToCreate.map((user) => createBudgetUser(user)));
+      setStartBalance(balance);
+      setCategories(onboardingCategories);
+      setSettings({ ...settings, baseCurrency, currency });
+      await completeOnboarding();
+      setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
+    } catch (error) {
+      console.error(error);
+      const message = /onboarding_completed|column/i.test(error?.message || '')
+        ? 'В Supabase нужно применить миграцию onboarding_completed, затем повторите сохранение.'
+        : 'Не удалось сохранить настройку семьи. Проверьте подключение и попробуйте ещё раз.';
+      setStatus(message);
+      throw new Error(message);
+    }
   }} />;
 
   const renderHome = () => (
