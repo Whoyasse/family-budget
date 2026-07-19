@@ -1,10 +1,7 @@
 const SETTINGS_KEY = 'family-budget-settings';
 const LEGACY_BALANCE_KEY = 'startBalance';
 
-export const DEFAULT_USERS = [
-  { id: 'user-dima', name: 'Дима', avatar: '👨', previousNames: ['Дима'], legacyNames: ['Дима'], archived: false, createdAt: '2026-01-01T00:00:00.000Z' },
-  { id: 'user-ida', name: 'Ида', avatar: '👩', previousNames: ['Ида', 'Жена'], legacyNames: ['Ида', 'Жена'], archived: false, createdAt: '2026-01-01T00:00:00.000Z' }
-];
+export const DEFAULT_USERS = [];
 
 export const ACCENTS = {
   green: {
@@ -93,12 +90,9 @@ function readRaw() {
 }
 
 export function loadSettings() {
-  if (typeof window === 'undefined') return { currency: 'EUR', accent: 'green', theme: 'dark', users: DEFAULT_USERS, onboardingComplete: false };
+  if (typeof window === 'undefined') return { currency: 'EUR', accent: 'green', theme: 'dark', onboardingComplete: false };
   const raw = readRaw();
   const hasLegacyInstallation = window.localStorage.getItem(LEGACY_BALANCE_KEY) !== null;
-  const users = Array.isArray(raw.users) && raw.users.length
-    ? raw.users.filter((user) => user?.id && user?.name).map(normalizeUser)
-    : DEFAULT_USERS.map(normalizeUser);
   return {
     version: 1,
     currency: ['EUR', 'USD', 'RUB', 'PLN', 'UAH'].includes(raw.currency) ? raw.currency : 'EUR',
@@ -108,7 +102,6 @@ export function loadSettings() {
     accent: raw.accent === 'custom' || ACCENTS[raw.accent] ? raw.accent : 'green',
     customAccent: /^#[\da-f]{6}$/i.test(raw.customAccent) ? raw.customAccent : '#2fcf72',
     theme: THEMES[raw.theme] ? raw.theme : 'dark',
-    users,
     deletedNames: raw.deletedNames && typeof raw.deletedNames === 'object' ? raw.deletedNames : {},
     deletedCategoryNames: raw.deletedCategoryNames && typeof raw.deletedCategoryNames === 'object' ? raw.deletedCategoryNames : {},
     onboardingComplete: raw.onboardingComplete ?? hasLegacyInstallation
@@ -116,5 +109,21 @@ export function loadSettings() {
 }
 
 export function persistSettings(settings) {
-  window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({ version: 1, ...settings }));
+  const { users, ...uiSettings } = settings;
+  window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({ version: 1, ...uiSettings }));
+}
+
+// One-time bridge for installations from before budget_users existed.
+// The copy is removed immediately, so it cannot remain the source of truth.
+export function readLegacyUsersForMigration() {
+  const raw = readRaw();
+  return Array.isArray(raw.users) ? raw.users.filter((user) => user?.name).map(normalizeUser) : [];
+}
+
+export function clearLegacyUsersAfterMigration() {
+  const raw = readRaw();
+  if (Object.hasOwn(raw, 'users')) {
+    delete raw.users;
+    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(raw));
+  }
 }

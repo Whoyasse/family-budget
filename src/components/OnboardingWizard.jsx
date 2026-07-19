@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { DEFAULT_USERS } from '../utils/settingsStorage';
 import { createDefaultCategories } from '../utils/categoryStorage';
 
 export const AVATARS = ['👨','👩','🧑','👱‍♂️','👱‍♀️','🐶','🐱','🐻','🦊','🐼','🐸','🦁'];
 
 function OnboardingWizard({ onComplete }) {
   const [step, setStep] = useState(1); const [currency, setCurrency] = useState('EUR'); const [balance, setBalance] = useState('');
-  const [firstUser, setFirstUser] = useState(() => ({ ...DEFAULT_USERS[0], name: '', previousNames: [], legacyNames: [] })); const [addSecond, setAddSecond] = useState(false); const [secondUser, setSecondUser] = useState(() => ({ ...DEFAULT_USERS[1], name: '', previousNames: [], legacyNames: [] }));
+  const [firstUser, setFirstUser] = useState(() => ({ name: '', avatar: '🧑' })); const [addSecond, setAddSecond] = useState(false); const [secondUser, setSecondUser] = useState(() => ({ name: '', avatar: '🧑' }));
   const [categories, setCategories] = useState(() => createDefaultCategories().map((category) => ({ ...category, archived: true }))); const [custom, setCustom] = useState('');
   const users = [firstUser, ...(addSecond ? [secondUser] : [])].map((user) => ({ ...user, legacyNames: [user.name], previousNames: [user.name], archived: false }));
   const categoryStep = (type, title) => <div className="onboarding-step"><h2>{title}</h2><div className="category-grid">{categories.filter((item) => item.type === type).map((item) => <button key={item.id} type="button" className={`category-btn ${item.archived ? '' : 'active'}`} onClick={() => setCategories(categories.map((category) => category.id === item.id ? { ...category, archived: !category.archived } : category))}><span>{item.icon}</span><strong>{item.name}</strong></button>)}</div><div className="onboarding-custom-category"><input value={custom} onChange={(event) => setCustom(event.target.value)} placeholder="Своя категория" /><button className="ghost-btn" type="button" onClick={() => { const name = custom.trim(); if (!name) return; setCategories([...categories, { id: `category-${Date.now()}`, name, label: name, icon: '📦', type, archived: false, previousNames: [name], createdAt: new Date().toISOString() }]); setCustom(''); }}>Добавить</button></div></div>;

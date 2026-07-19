@@ -163,7 +163,7 @@ function normalizeTransactions(payload) {
 
 function App() {
   const { session, authUser, loading: authLoading, signOut } = useAuth();
-  const { householdId, loading: householdLoading, createdHousehold } = useHousehold();
+  const { householdId, household, budgetUsers: familyUsers, loading: householdLoading, createdHousehold, createBudgetUser, updateBudgetUser, deleteBudgetUser, updateHouseholdName } = useHousehold();
   const [onboardingRequested, setOnboardingRequested] = useState(false);
   const [settings, setSettings] = useState(() => loadSettings());
   const [categories, setCategories] = useState(() => loadCategories());
@@ -204,7 +204,7 @@ function App() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const touchStartYRef = useRef(null);
   const [form, setForm] = useState(() => ({
-    person: readStoredSelection(PERSON_STORAGE_KEY, settings.users.find((user) => !user.archived)?.name || ''),
+    person: readStoredSelection(PERSON_STORAGE_KEY, familyUsers.find((user) => !user.archived)?.name || ''),
     type: 'Расход',
     category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, categories.find((category) => category.type === 'expense' && !category.archived)?.name || ''),
     amount: '',
@@ -252,7 +252,7 @@ function App() {
         document.body.appendChild(script);
       });
 
-      const activePersonNames = new Set(settings.users.map((user) => user.name));
+      const activePersonNames = new Set(familyUsers.map((user) => user.name));
       const parsed = normalizeTransactions(payload).map((transaction) => ({
         ...transaction,
         // A newly created user may intentionally reuse a deleted display name.
@@ -509,18 +509,18 @@ function App() {
       const transactionDate = parsedDate?.getTime() ?? null;
       const matchesDateFrom = dateFrom === null || (transactionDate !== null && transactionDate >= dateFrom);
       const matchesDateTo = dateTo === null || (transactionDate !== null && transactionDate <= dateTo);
-      const selectedUser = settings.users.find((user) => user.id === historyFilters.person);
+      const selectedUser = familyUsers.find((user) => user.id === historyFilters.person);
       const matchesPerson = !historyFilters.person || (selectedUser ? getUserTransactionNames(selectedUser).has(transaction.person) : transaction.person === historyFilters.person);
       const matchesType = !historyFilters.type || transaction.type === historyFilters.type;
       const matchesCategory = !historyFilters.category || transaction.category === historyFilters.category;
       return matchesText && matchesFrom && matchesTo && matchesDateFrom && matchesDateTo && matchesPerson && matchesType && matchesCategory;
     });
-  }, [historyFilters, historySearch, settings.users, transactions]);
+  }, [historyFilters, historySearch, familyUsers, transactions]);
 
   const historyFilterOptions = useMemo(() => ({
-    people: settings.users.map((user) => ({ id: user.id, name: user.name, avatar: user.avatar, archived: user.archived })),
+    people: familyUsers.map((user) => ({ id: user.id, name: user.name, avatar: user.avatar, archived: user.archived })),
     categories: [...new Set(transactions.map((transaction) => transaction.category).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'))
-  }), [settings.users, transactions]);
+  }), [familyUsers, transactions]);
 
   const handleBalanceSave = (event) => {
     event.preventDefault();
@@ -540,7 +540,7 @@ function App() {
     if (transaction) {
       setEditingTransaction(transaction);
       setForm({
-        person: normalizePersonValue(transaction.person || settings.users.find((user) => !user.archived)?.name || ''),
+        person: normalizePersonValue(transaction.person || familyUsers.find((user) => !user.archived)?.name || ''),
         type: transaction.type || 'Расход',
         category: transaction.category || categories.find((category) => category.type === 'expense' && !category.archived)?.name || '',
         amount: String(((transaction.amount || 0) * (exchangeRate || 1))),
@@ -549,7 +549,7 @@ function App() {
     } else {
       setEditingTransaction(null);
       setForm({
-        person: readStoredSelection(PERSON_STORAGE_KEY, settings.users.find((user) => !user.archived)?.name || ''),
+        person: readStoredSelection(PERSON_STORAGE_KEY, familyUsers.find((user) => !user.archived)?.name || ''),
         type: 'Расход',
         category: readStoredSelection(EXPENSE_CATEGORY_STORAGE_KEY, categories.find((category) => category.type === 'expense' && !category.archived)?.name || ''),
         amount: '',
@@ -722,7 +722,10 @@ function App() {
   const renderWelcome = () => <OnboardingWizard onComplete={({ baseCurrency, currency, balance, users, categories: onboardingCategories }) => {
     setStartBalance(balance);
     setCategories(onboardingCategories);
-    setSettings({ ...settings, baseCurrency, currency, users, onboardingComplete: true });
+    setSettings({ ...settings, baseCurrency, currency, onboardingComplete: true });
+    users.forEach((user) => {
+      void createBudgetUser(user).catch((error) => { console.error(error); setStatus('Не удалось сохранить участников семьи'); });
+    });
     setOnboardingRequested(false);
     setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
   }} />;
@@ -822,7 +825,7 @@ function App() {
         loading={loading}
         currencyLabel={settings.currency}
         isRateLoading={!exchangeRate}
-        users={editingTransaction ? settings.users : settings.users.filter((user) => !user.archived)}
+        users={editingTransaction ? familyUsers : familyUsers.filter((user) => !user.archived)}
         categoryOptions={categories.filter((category) => !category.archived && category.type === (form.type === 'Расход' ? 'expense' : 'income'))}
         onChange={handleFormChange}
         onCategorySelect={handleCategorySelect}
@@ -1000,7 +1003,7 @@ function App() {
       getCategoryIcon={getCategoryIcon}
       onBack={() => setView('home')}
       onOpenCategory={(category) => handleOpenCategory(category, 'stats')}
-      users={settings.users}
+      users={familyUsers}
       categories={categories}
       onOpenUser={(user) => { setSelectedUser(user); setView('user'); }}
     />
@@ -1021,14 +1024,20 @@ function App() {
     settings={settings}
     onSettingsChange={setSettings}
     transactions={transactions}
-    onDeleteUser={(user) => {
-      if (settings.users.length <= 1) {
+    users={familyUsers}
+    household={household}
+    onUpdateHouseholdName={updateHouseholdName}
+    onCreateUser={createBudgetUser}
+    onUpdateUser={updateBudgetUser}
+    onDeleteUser={async (user) => {
+      if (familyUsers.length <= 1) {
         setStatus('Нужен хотя бы один пользователь');
         return;
       }
       const names = Array.from(new Set([user.name, ...(user.previousNames || user.legacyNames || [])]));
       const deletedNames = Object.fromEntries(names.map((name) => [name, `Удалён ${user.name}`]));
-      setSettings({ ...settings, users: settings.users.filter((item) => item.id !== user.id), deletedNames: { ...settings.deletedNames, ...deletedNames } });
+      await deleteBudgetUser(user.id);
+      setSettings({ ...settings, deletedNames: { ...settings.deletedNames, ...deletedNames } });
       setTransactions((current) => current.map((transaction) => deletedNames[transaction.person] ? { ...transaction, person: deletedNames[transaction.person] } : transaction));
       setStatus(`Пользователь ${user.name} удалён`);
     }}
