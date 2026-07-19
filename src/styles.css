@@ -12,6 +12,7 @@
   --theme-muted: #9fb4a8;
   --theme-text: #f8faf8;
   --theme-shadow: rgba(0, 0, 0, 0.24);
+  --bottom-nav-height: 88px;
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -52,7 +53,7 @@ select {
 
 .app-shell {
   min-height: 100vh;
-  padding: 18px 16px 132px;
+  padding: 18px 16px calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 24px);
   display: flex;
   justify-content: center;
   width: 100%;
@@ -646,7 +647,10 @@ button.category-row {
   margin: -2px 0 4px;
 }
 
-.settings-screen { gap: 12px; }
+.settings-screen {
+  gap: 12px;
+  padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 24px);
+}
 .settings-section { display: grid; gap: 12px; }
 .settings-inline-form { display: flex; gap: 8px; }
 .settings-inline-form input, .onboarding-step input, .settings-user input { min-width: 0; flex: 1; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; padding: 11px 12px; background: rgba(255,255,255,.06); color: #f8faf8; }
@@ -2079,7 +2083,7 @@ button.category-row,
   }
 
   .app-shell {
-    padding: 0 24px 24px;
+    padding: 0 24px calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 24px);
     max-width: 480px;
   }
 
@@ -2091,7 +2095,7 @@ button.category-row,
 
 @media (max-width: 480px) {
   .app-shell {
-    padding: 12px 12px 138px;
+    padding: 12px 12px calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 24px);
   }
 
   .card {
