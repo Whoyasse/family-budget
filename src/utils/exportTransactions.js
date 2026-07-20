@@ -1,6 +1,5 @@
-import * as XLSX from 'xlsx';
-
-export function exportTransactionsToXlsx(transactions, monthlyTotals) {
+export async function exportTransactionsToXlsx(transactions, monthlyTotals) {
+  const XLSX = await import('xlsx');
   const rows = transactions.map((transaction) => ({
     ID: transaction.id,
     Date: transaction.date,

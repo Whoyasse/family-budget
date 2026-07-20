@@ -2362,6 +2362,25 @@ button.category-row,
   justify-self: start;
 }
 
+.route-loading {
+  min-height: 260px;
+  align-items: center;
+  justify-content: center;
+}
+
+.route-loading .card {
+  display: grid;
+  min-width: 180px;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.route-loading p {
+  margin: 0;
+  color: var(--theme-muted);
+}
+
 /* UX polish: quiet feedback and resilient small-screen layouts. */
 .skeleton-stack { display: grid; gap: 10px; }
 .skeleton { display: block; border-radius: 10px; background: color-mix(in srgb, var(--theme-text) 10%, var(--theme-surface)); }

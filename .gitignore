@@ -3,4 +3,5 @@ dist/
 .vercel/
 .env
 .env.local
+stats.html
 .env.*.local
