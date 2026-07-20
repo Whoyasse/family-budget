@@ -19,9 +19,9 @@ function TransactionWizard({
 }) {
   const [step, setStep] = useState(1);
   const amountInputRef = useRef(null);
-  const touchStartYRef = useRef(null);
   const amount = Number(String(form.amount || '').replace(',', '.'));
   const canContinue = Number.isFinite(amount) && amount > 0;
+  const hasCategories = categoryOptions.length > 0;
 
   useEffect(() => {
     if (step !== 4) return undefined;
@@ -34,6 +34,12 @@ function TransactionWizard({
       onChange({ target: { name, value } });
     }
     setStep(nextStep);
+  };
+
+  const advanceToDetails = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setStep(5);
   };
 
   const renderStep = () => {
@@ -88,7 +94,7 @@ function TransactionWizard({
               <button
                 key={category.label}
                 type="button"
-                className="category-btn"
+                className={`category-btn ${form.category === category.label ? 'active' : ''}`}
                 onClick={() => {
                   onCategorySelect(category.label);
                   setStep(4);
@@ -99,6 +105,7 @@ function TransactionWizard({
               </button>
             ))}
           </div>
+          {!hasCategories ? <p className="form-help">Для этого типа операции пока нет категорий. Добавьте её в настройках.</p> : null}
         </div>
       );
     }
@@ -121,7 +128,8 @@ function TransactionWizard({
               onChange={onChange}
             />
           </label>
-          <button className="primary-btn wizard-primary" type="button" disabled={!canContinue || isRateLoading} onClick={() => setStep(5)}>
+          {form.amount !== '' && !canContinue ? <p className="field-error">Введите сумму больше нуля.</p> : null}
+          <button className="primary-btn wizard-primary" type="button" disabled={!canContinue || isRateLoading} onClick={advanceToDetails}>
             {isRateLoading ? 'Загружаю курс…' : 'Продолжить'}
           </button>
         </div>
@@ -133,18 +141,19 @@ function TransactionWizard({
         <h3>Детали операции</h3>
         <label className="field">
           <span>Комментарий <small>(необязательно)</small></span>
-          <input
+          <textarea
             name="comment"
-            type="text"
             placeholder="Например, супермаркет"
-            value={form.comment}
+            value={form.comment ?? ''}
             onChange={onChange}
+            maxLength={400}
+            rows={3}
           />
         </label>
         <button className="receipt-placeholder-btn" type="button" onClick={onReceiptClick}>
           📎 Прикрепить чек
         </button>
-        <button className="primary-btn wizard-primary" type="submit" disabled={loading || isSubmitting || isRateLoading}>
+        <button className="primary-btn wizard-primary" type="submit" disabled={!canContinue || !form.person || !form.category || loading || isSubmitting || isRateLoading}>
           {isSubmitting ? 'Сохраняю…' : 'Сохранить'}
         </button>
       </div>
@@ -153,19 +162,7 @@ function TransactionWizard({
 
   return (
     <div className="sheet-backdrop wizard-backdrop" onClick={onClose}>
-      <div
-        className={`sheet-card wizard-sheet wizard-sheet--step-${step}`}
-        onClick={(event) => event.stopPropagation()}
-        onTouchStart={(event) => {
-          touchStartYRef.current = event.touches[0].clientY;
-        }}
-        onTouchEnd={(event) => {
-          if (touchStartYRef.current === null) return;
-          const deltaY = event.changedTouches[0].clientY - touchStartYRef.current;
-          if (deltaY > 90) onClose();
-          touchStartYRef.current = null;
-        }}
-      >
+      <div className={`sheet-card wizard-sheet wizard-sheet--step-${step}`} onClick={(event) => event.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="sheet-header wizard-header">
           <div>

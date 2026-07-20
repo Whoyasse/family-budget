@@ -9,6 +9,8 @@ function SettingsPage({ startBalance, exchangeRate, onSaveBalance, settings, onS
   const [editingUserId, setEditingUserId] = useState(null);
   const [draftUser, setDraftUser] = useState(null);
   const [savingFamily, setSavingFamily] = useState(false);
+  const [savingUser, setSavingUser] = useState(false);
+  const [savingBalance, setSavingBalance] = useState(false);
 
   const saveFamilyName = async () => {
     try {
@@ -18,28 +20,31 @@ function SettingsPage({ startBalance, exchangeRate, onSaveBalance, settings, onS
       onStatus('Название семьи сохранено');
     } catch (error) {
       console.error(error);
-      onStatus(error.message || 'Не удалось сохранить название семьи');
+      onStatus('Не удалось сохранить название семьи. Попробуйте ещё раз.');
     } finally { setSavingFamily(false); }
   };
 
   const saveUser = async () => {
     if (!draftUser?.name.trim()) return;
     try {
+      setSavingUser(true);
       if (editingUserId === 'new') await onCreateUser(draftUser);
       else await onUpdateUser(editingUserId, draftUser);
       setEditingUserId(null);
       setDraftUser(null);
-      onStatus('Участник сохранён');
+      onStatus('✓ Участник сохранён');
     } catch (error) {
       console.error(error);
-      onStatus(error.message || 'Не удалось сохранить участника');
+      onStatus('Не удалось сохранить участника. Попробуйте ещё раз.');
+    } finally {
+      setSavingUser(false);
     }
   };
 
   const addUser = () => { setDraftUser({ name: '', avatar: '🧑' }); setEditingUserId('new'); };
 
   return <div className="screen settings-screen"><header className="topbar"><div><p className="eyebrow">Профиль и приложение</p><h2>Настройки</h2></div></header>
-    <section className="card settings-section"><div className="section-title"><h4>Начальный баланс</h4></div><form className="settings-inline-form" onSubmit={(event) => { event.preventDefault(); onSaveBalance((Number(String(balanceInput).replace(',', '.')) || 0) / (exchangeRate || 1)); }}><input type="number" inputMode="decimal" value={balanceInput} onChange={(event) => setBalanceInput(event.target.value)} /><button className="primary-btn" disabled={!exchangeRate}>Сохранить</button></form></section>
+    <section className="card settings-section"><div className="section-title"><h4>Валюта и баланс</h4></div><form className="settings-inline-form" onSubmit={async (event) => { event.preventDefault(); if (savingBalance) return; setSavingBalance(true); try { await onSaveBalance((Number(String(balanceInput).replace(',', '.')) || 0) / (exchangeRate || 1)); onStatus('✓ Начальный баланс сохранён'); } catch { onStatus('Не удалось сохранить баланс. Попробуйте ещё раз.'); } finally { setSavingBalance(false); } }}><input type="number" inputMode="decimal" value={balanceInput} onChange={(event) => setBalanceInput(event.target.value)} /><button className="primary-btn" disabled={!exchangeRate || savingBalance}>{savingBalance ? 'Сохраняем…' : 'Сохранить'}</button></form></section>
     <section className="card settings-section"><div className="section-title"><h4>Валюта</h4></div><div className="choice-grid currency-grid">{['EUR', 'USD', 'RUB', 'PLN', 'UAH'].map((currency) => <button key={currency} type="button" className={settings.currency === currency ? 'active' : ''} onClick={() => onSettingsChange({ ...settings, currency })}>{currency}</button>)}</div></section>
     <section className="card settings-section"><div className="section-title"><h4>Учётная валюта</h4></div><p className="muted">В этой валюте суммы хранятся в таблице. Отображение можно менять отдельно.</p><div className="choice-grid currency-grid">{['EUR', 'USD', 'RUB', 'PLN', 'UAH'].map((currency) => <button key={currency} type="button" className={settings.baseCurrency === currency ? 'active' : ''} onClick={() => { if (currency === settings.baseCurrency || window.confirm(`Считать все существующие суммы валютой ${currency}? Это не пересчитывает таблицу.`)) onSettingsChange({ ...settings, baseCurrency: currency }); }}>{currency}</button>)}</div></section>
     <section className="card settings-section"><div className="section-title"><h4>Акцент</h4></div><div className="accent-grid">{Object.entries(ACCENTS).map(([id, accent]) => <button key={id} type="button" className={settings.accent === id ? 'active' : ''} onClick={() => onSettingsChange({ ...settings, accent: id })}><i style={{ background: accent.primary }} />{accent.label}</button>)}<label className={`custom-accent-picker ${settings.accent === 'custom' ? 'active' : ''}`}><i className="color-wheel" /><span>Свой цвет</span><input aria-label="Выбрать свой акцент" type="color" value={settings.customAccent || '#2fcf72'} onChange={(event) => onSettingsChange({ ...settings, accent: 'custom', customAccent: event.target.value })} /></label></div></section>

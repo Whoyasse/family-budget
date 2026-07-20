@@ -42,7 +42,9 @@ function HomePage({
   onOpenTransactionDetails,
   onOpenCategory,
   onOpenLimit,
-  onOpenBalance
+  onOpenBalance,
+  onAddTransaction,
+  loading = false
 }) {
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [balancePeriod, setBalancePeriod] = useState('month');
@@ -74,8 +76,8 @@ function HomePage({
       <section className="card balance-card balance-card--interactive" role="button" tabIndex="0" onClick={onOpenBalance} onKeyDown={(event) => event.key === 'Enter' && onOpenBalance()}>
         <div className="balance-row">
           <div>
-            <p className="eyebrow">Текущий баланс</p>
-            <h3>{formatCurrency(currentBalance)}</h3>
+            <p className="eyebrow">Общий баланс</p>
+            <h3 className={currentBalance < 0 ? 'negative' : ''}>{loading ? <span className="skeleton skeleton-text skeleton-text--large" /> : formatCurrency(currentBalance)}</h3>
             <p className={`balance-change ${monthlyBalanceChange >= 0 ? 'positive' : 'negative'}`}>{monthlyBalanceChange >= 0 ? '▲' : '▼'} {monthlyBalanceChange >= 0 ? '+' : ''}{formatCurrency(monthlyBalanceChange)} за выбранный месяц</p>
           </div>
         </div>
@@ -111,8 +113,8 @@ function HomePage({
           <h4>Лимиты на этот месяц</h4>
           <span>{categoryBudgets.length}</span>
         </div>
-        {categoryBudgets.length === 0 ? (
-          <p className="muted">Пока нет расходов за выбранный месяц.</p>
+        {loading ? <div className="skeleton-stack"><span className="skeleton skeleton-row" /><span className="skeleton skeleton-row" /></div> : categoryBudgets.length === 0 ? (
+          <div className="empty-state compact-empty"><span aria-hidden="true">🎯</span><strong>Лимиты пока не установлены</strong><p>Выберите категорию и задайте лимит на этот месяц.</p><button className="text-action" type="button" onClick={onOpenBalance}>Настроить лимиты</button></div>
         ) : (
           categoryBudgets.map((item) => (
             <button key={item.id} type="button" className={`progress-row category-link-row budget-row ${item.limit && item.percent >= 100 ? 'is-exceeded' : item.limit && item.percent >= 80 ? 'is-warning' : ''}`} onClick={() => onOpenLimit(item)}>
@@ -136,9 +138,9 @@ function HomePage({
         <div className="section-title">
           <h4>Последние операции</h4>
         </div>
-        <p className="latest-operations-count">Показано {visibleTransactions.length} из {sortedTransactions.length}</p>
-        {filteredTransactions.length === 0 ? (
-          <p className="muted">Пока нет операций за этот месяц.</p>
+        {!loading ? <p className="latest-operations-count">Показано {visibleTransactions.length} из {sortedTransactions.length}</p> : null}
+        {loading ? <div className="skeleton-stack"><span className="skeleton skeleton-row" /><span className="skeleton skeleton-row" /><span className="skeleton skeleton-row" /></div> : filteredTransactions.length === 0 ? (
+          <div className="empty-state"><span className="empty-state__icon" aria-hidden="true">🧾</span><strong>Операций пока нет</strong><p>Добавьте первую операцию — здесь появится история за выбранный месяц.</p><button className="primary-btn" type="button" onClick={onAddTransaction}>Добавить первую операцию</button></div>
         ) : (
           <div className="transaction-list">
             {visibleTransactions.map((transaction) => (

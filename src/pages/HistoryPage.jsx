@@ -113,7 +113,7 @@ function HistoryPage({
                     <div className="transaction-info">
                       <strong>{transaction.category}</strong>
                       <p>{transaction.person ? `• ${transaction.person}` : ''}</p>
-                      <p className="transaction-comment">{transaction.comment || 'Без комментария'}</p>
+                      {transaction.comment ? <p className="transaction-comment">{transaction.comment}</p> : null}
                     </div>
                     <div className="transaction-meta">
                       <span className={`amount ${transaction.type === 'Доход' ? 'positive' : 'negative'}`}>
