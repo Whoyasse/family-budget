@@ -40,6 +40,21 @@ test('calculates categories top operations users averages and expensive day', ()
   assert.equal(getMostExpensiveDay(july).key, '2026-07-02');
 });
 
+test('returns compact participant expense data and omits users without expenses', () => {
+  const july = filterAnalyticsPeriod(transactions, getAnalyticsRange('2026-07'));
+  const rows = getUserExpenses(july, [
+    { id: 'd', name: 'Дима', avatar: '👨' },
+    { id: 'i', name: 'Ида', avatar: '👩' },
+    { id: 'empty', name: 'Очень длинное имя без операций', avatar: '🧑' }
+  ]);
+
+  assert.deepEqual(rows.map(({ user, amount, count, percent }) => ({ name: user.name, amount, count, percent: Math.round(percent) })), [
+    { name: 'Дима', amount: 50, count: 1, percent: 71 },
+    { name: 'Ида', amount: 20, count: 1, percent: 29 }
+  ]);
+  assert.deepEqual(getUserExpenses([], [{ id: 'd', name: 'Дима' }]), []);
+});
+
 test('returns no forecast with insufficient data and avoids division by zero', () => {
   assert.equal(getMonthForecast([], '2026-07', new Date(2026, 6, 1)), null);
   assert.deepEqual(getExpenseAverages([], getAnalyticsRange('2026-07')), { perCalendarDay: 0, perSpendingDay: 0, perOperation: 0 });

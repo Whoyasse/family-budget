@@ -3,7 +3,7 @@ import { formatTransactionDate, getMonthLabel } from '../utils/date';
 import { getCategoryColor } from '../data/categories';
 import {
   ANALYTICS_PERIODS, filterAnalyticsPeriod, getAnalyticsRange, getAnalyticsSummary, getCategoryAnalytics,
-  getComparison, getDailySeries, getExpenseAverages, getMonthForecast, getMonthlySeries,
+  getComparison, getExpenseAverages, getMonthForecast,
   getMostExpensiveDay, getPreviousAnalyticsRange, getTopTransactions, getUserExpenses
 } from '../utils/analytics';
 
@@ -20,16 +20,11 @@ function Comparison({ comparison, formatCurrency }) {
   return <div className="analytics-comparison">{row('Доход', comparison.income)}{row('Расход', comparison.expense)}{row('Разница', comparison.balance)}</div>;
 }
 
-function CompactBars({ series, monthly = false, formatCurrency, ariaLabel }) {
-  const max = Math.max(1, ...series.map((item) => Math.max(item.income, item.expense)));
-  const [activeKey, setActiveKey] = useState(null);
-  const labelStep = Math.ceil(series.length / 6);
-  const chartKey = series.map((item) => `${item.key}-${item.income}-${item.expense}`).join('|');
-  return <div className="analytics-chart-wrap" aria-label={ariaLabel} key={chartKey}><div className="analytics-bars financial-bars">{series.map((item, index) => {
-    const label = monthly ? getMonthLabel(item.key).slice(0, 3) : item.label;
-    const isActive = activeKey === item.key;
-    return <button type="button" className={`analytics-bar ${isActive ? 'active' : ''}`} key={item.key} aria-label={`${monthly ? getMonthLabel(item.key) : item.label}: доход ${formatCurrency(item.income)}, расход ${formatCurrency(item.expense)}`} onFocus={() => setActiveKey(item.key)} onBlur={() => setActiveKey(null)} onMouseEnter={() => setActiveKey(item.key)} onMouseLeave={() => setActiveKey(null)}><div className="analytics-bar__pair"><i className="income-bar" style={{ height: `${item.income / max * 100}%`, animationDelay: `${index * 22}ms` }} /><i className="expense-bar" style={{ height: `${item.expense / max * 100}%`, animationDelay: `${index * 22 + 60}ms` }} /></div><small className={(!monthly || index % labelStep === 0 || index === series.length - 1) ? '' : 'analytics-bar__label--hidden'}>{label}</small><span className="analytics-chart-tooltip" role="status"><b>{monthly ? getMonthLabel(item.key) : `${item.label} число`}</b><span><i className="income-dot" />Доход {formatCurrency(item.income)}</span><span><i className="expense-dot" />Расход {formatCurrency(item.expense)}</span></span></button>;
-  })}</div></div>;
+function UserExpenseRow({ entry, formatCurrency, onOpenUser }) {
+  const content = <><span>{entry.user.avatar}</span><div><strong>{entry.user.name}</strong><small>{entry.count} оп. · {entry.percent.toFixed(0)}%</small><div className="progress-bar"><div className="progress-fill" style={{ width: `${entry.percent}%` }} /></div></div><b className="responsive-money">{formatCurrency(entry.amount)}</b></>;
+  return typeof onOpenUser === 'function'
+    ? <button type="button" className="analytics-user-row" onClick={() => onOpenUser(entry.user)}>{content}</button>
+    : <div className="analytics-user-row">{content}</div>;
 }
 
 function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurrency, getCategoryIcon, onBack, onOpenCategory, onOpenUser, onOpenTransaction }) {
@@ -55,9 +50,6 @@ function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurre
   const averages = useMemo(() => getExpenseAverages(items, range), [items, range]);
   const expensiveDay = useMemo(() => getMostExpensiveDay(items), [items]);
   const forecast = useMemo(() => getMonthForecast(items, selectedMonth), [items, selectedMonth]);
-  const timeSeries = useMemo(() => range.months === 1 ? getDailySeries(items, range) : getMonthlySeries(items, range), [items, range]);
-  const sixRange = useMemo(() => getAnalyticsRange(selectedMonth, 'six'), [selectedMonth]);
-  const monthSeries = useMemo(() => getMonthlySeries(filterAnalyticsPeriod(allTransactions, sixRange), sixRange), [allTransactions, sixRange]);
   const periodLabel = range.start === range.end ? getMonthLabel(range.end) : `${getMonthLabel(range.start)} — ${getMonthLabel(range.end)}`;
 
   const overview = <>
@@ -73,9 +65,7 @@ function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurre
   </>;
 
   const trendTab = <>
-    <section className="card analytics-chart-card"><div className="section-title"><h4>Доходы и расходы</h4><div className="chart-granularity" aria-label={`График отображается ${range.months === 1 ? 'по дням' : 'по месяцам'}`}><span className={range.months === 1 ? 'active' : ''}>По дням</span><span className={range.months > 1 ? 'active' : ''}>По месяцам</span></div></div><CompactBars series={timeSeries} monthly={range.months > 1} formatCurrency={formatCurrency} ariaLabel="График доходов и расходов" /><p className="chart-caption"><span className="income-dot" /> Доход <span className="expense-dot" /> Расход <em>Нажмите или наведите на столбец</em></p></section>
-    <section className="card analytics-chart-card analytics-month-chart"><div className="section-title"><h4>Сравнение месяцев</h4><span>6 месяцев</span></div><CompactBars series={monthSeries} monthly formatCurrency={formatCurrency} ariaLabel="Сравнение доходов и расходов по месяцам" /><p className="chart-caption"><span className="income-dot" /> Доход <span className="expense-dot" /> Расход <em>Нажмите или наведите на столбец</em></p></section>
-    {userExpenses.length > 1 ? <section className="card"><div className="section-title"><h4>Расходы по участникам</h4><span>Нажмите для деталей</span></div><div className="analytics-user-list">{userExpenses.map(({ user, amount, count, percent }) => <button key={user.id} type="button" className="analytics-user-row" onClick={() => onOpenUser?.(user)}><span>{user.avatar}</span><div><strong>{user.name}</strong><small>{count} оп. · {percent.toFixed(0)}%</small><div className="progress-bar"><div className="progress-fill" style={{ width: `${percent}%` }} /></div></div><b className="responsive-money">{formatCurrency(amount)}</b><span className="analytics-row-chevron" aria-hidden="true">›</span></button>)}</div></section> : null}
+    <section className="card analytics-users-card"><div className="section-title"><h4>Расходы по участникам</h4></div>{userExpenses.length ? <div className="analytics-user-list">{userExpenses.map((entry) => <UserExpenseRow key={entry.user.id} entry={entry} formatCurrency={formatCurrency} onOpenUser={onOpenUser} />)}</div> : <p className="analytics-user-empty">За выбранный период расходов по участникам нет.</p>}</section>
   </>;
 
   const selectedPeriodLabel = ANALYTICS_PERIODS.find((item) => item.id === periodId)?.label || 'Этот месяц';
