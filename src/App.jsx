@@ -969,7 +969,7 @@ function App() {
     return <CategoryAnalyticsPage category={selectedCategory} selectedMonth={homeSelectedMonth} transactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} getCategoryIcon={getCategoryIcon} onBack={handleCloseCategory} onOpenTransaction={handleOpenTransactionDetails} />;
   };
 
-  const renderUserAnalytics = () => selectedUser ? <UserAnalyticsPage user={selectedUser} selectedMonth={homeSelectedMonth} monthlyTransactions={homeFilteredTransactions} allTransactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} onBack={() => { setSelectedUser(null); setView('stats'); }} onOpenTransaction={handleOpenTransactionDetails} /> : null;
+  const renderUserAnalytics = () => selectedUser ? <UserAnalyticsPage user={selectedUser} selectedMonth={homeSelectedMonth} allTransactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} onBack={() => { setSelectedUser(null); setView('stats'); }} onOpenTransaction={handleOpenTransactionDetails} /> : null;
   const renderBalance = () => <BalancePage points={balancePoints} formatCurrency={formatCurrency} onBack={() => setView('home')} />;
 
   const renderSettings = () => <SettingsPage
