@@ -10,7 +10,7 @@ import {
 export const ANALYTICS_TABS = [
   { id: 'overview', label: 'Обзор' },
   { id: 'categories', label: 'Категории' },
-  { id: 'trend', label: 'Динамика' }
+  { id: 'trend', label: 'Пользователи' }
 ];
 
 function Empty({ children }) { return <div className="empty-state analytics-empty"><span aria-hidden="true">📊</span><p>{children}</p></div>; }
@@ -21,15 +21,15 @@ function Comparison({ comparison, formatCurrency }) {
 }
 
 function UserExpenseRow({ entry, formatCurrency, onOpenUser }) {
-  const content = <><span>{entry.user.avatar}</span><div><strong>{entry.user.name}</strong><small>{entry.count} оп. · {entry.percent.toFixed(0)}%</small><div className="progress-bar"><div className="progress-fill" style={{ width: `${entry.percent}%` }} /></div></div><b className="responsive-money">{formatCurrency(entry.amount)}</b></>;
-  return typeof onOpenUser === 'function'
+  const canOpenDetails = typeof onOpenUser === 'function';
+  const content = <><span>{entry.user.avatar}</span><div><strong>{entry.user.name}</strong><small>{entry.count} оп. · {entry.percent.toFixed(0)}%</small><div className="progress-bar"><div className="progress-fill" style={{ width: `${entry.percent}%` }} /></div></div><b className="responsive-money">{formatCurrency(entry.amount)}</b>{canOpenDetails ? <span className="analytics-user-action" aria-hidden="true">Детали ›</span> : null}</>;
+  return canOpenDetails
     ? <button type="button" className="analytics-user-row" onClick={() => onOpenUser(entry.user)}>{content}</button>
     : <div className="analytics-user-row">{content}</div>;
 }
 
-function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurrency, getCategoryIcon, onBack, onOpenCategory, onOpenUser, onOpenTransaction }) {
+function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurrency, getCategoryIcon, onBack, onOpenCategory, onOpenUser, onOpenTransaction, activeTab = 'overview', onTabChange }) {
   const [periodId, setPeriodId] = useState('current');
-  const [tab, setTab] = useState('overview');
   const [isPeriodOpen, setIsPeriodOpen] = useState(false);
   const range = useMemo(() => getAnalyticsRange(selectedMonth, periodId), [selectedMonth, periodId]);
   const items = useMemo(() => filterAnalyticsPeriod(allTransactions, range), [allTransactions, range]);
@@ -69,7 +69,7 @@ function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurre
   </>;
 
   const selectedPeriodLabel = ANALYTICS_PERIODS.find((item) => item.id === periodId)?.label || 'Этот месяц';
-  return <div className="screen analytics-screen advanced-analytics-screen"><header className="topbar"><div><p className="eyebrow">Статистика</p><h2>Аналитика</h2><p className="muted">{periodLabel}</p></div><button className="ghost-btn" type="button" onClick={onBack}>Назад</button></header><section className="card analytics-tabs analytics-section-tabs">{ANALYTICS_TABS.map((item) => <button key={item.id} type="button" className={`analytics-tab ${tab === item.id ? 'active' : ''}`} onClick={() => setTab(item.id)}>{item.label}</button>)}</section><div className="analytics-period-picker"><button type="button" className={`analytics-period-trigger ${isPeriodOpen ? 'open' : ''}`} aria-expanded={isPeriodOpen} onClick={() => setIsPeriodOpen((current) => !current)}><span aria-hidden="true">🗓️</span><div><small>Период</small><strong>{selectedPeriodLabel}</strong></div><span className="analytics-period-caret" aria-hidden="true">⌄</span></button>{isPeriodOpen ? <div className="analytics-period-menu"><p>Выберите период</p>{ANALYTICS_PERIODS.map((period) => <button key={period.id} type="button" className={periodId === period.id ? 'active' : ''} onClick={() => { setPeriodId(period.id); setIsPeriodOpen(false); }}><span>{period.label}</span>{periodId === period.id ? <b aria-label="Выбрано">✓</b> : null}</button>)}</div> : null}</div>{!items.length ? <Empty>Добавьте несколько операций, чтобы увидеть аналитику за выбранный период.</Empty> : <div className="analytics-tab-content">{tab === 'overview' ? overview : tab === 'categories' ? categoryTab : trendTab}</div>}</div>;
+  return <div className="screen analytics-screen advanced-analytics-screen"><header className="topbar"><div><p className="eyebrow">Статистика</p><h2>Аналитика</h2><p className="muted">{periodLabel}</p></div><button className="ghost-btn" type="button" onClick={onBack}>Назад</button></header><section className="card analytics-tabs analytics-section-tabs">{ANALYTICS_TABS.map((item) => <button key={item.id} type="button" className={`analytics-tab ${activeTab === item.id ? 'active' : ''}`} onClick={() => onTabChange?.(item.id)}>{item.label}</button>)}</section><div className="analytics-period-picker"><button type="button" className={`analytics-period-trigger ${isPeriodOpen ? 'open' : ''}`} aria-expanded={isPeriodOpen} onClick={() => setIsPeriodOpen((current) => !current)}><span aria-hidden="true">🗓️</span><div><small>Период</small><strong>{selectedPeriodLabel}</strong></div><span className="analytics-period-caret" aria-hidden="true">⌄</span></button>{isPeriodOpen ? <div className="analytics-period-menu"><p>Выберите период</p>{ANALYTICS_PERIODS.map((period) => <button key={period.id} type="button" className={periodId === period.id ? 'active' : ''} onClick={() => { setPeriodId(period.id); setIsPeriodOpen(false); }}><span>{period.label}</span>{periodId === period.id ? <b aria-label="Выбрано">✓</b> : null}</button>)}</div> : null}</div>{!items.length ? <Empty>Добавьте несколько операций, чтобы увидеть аналитику за выбранный период.</Empty> : <div className="analytics-tab-content">{activeTab === 'overview' ? overview : activeTab === 'categories' ? categoryTab : trendTab}</div>}</div>;
 }
 
 export default AnalyticsPage;
