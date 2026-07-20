@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { getNextCategoryColor } from '../utils/categoryColors';
 
 const ICONS = ['🛒', '🍔', '☕', '⛽', '🚬', '🏠', '🚗', '💊', '👕', '🎮', '📦', '💼', '💰', '🎁', '📈', '🏦', '✈️', '🐶'];
 
@@ -35,7 +36,7 @@ function CategoryManagerSheet({ categories, budgets, selectedMonth, onChange, on
   };
 
   const create = () => {
-    const category = { id: `category-${Date.now()}`, name: '', label: '', icon: '📦', type: 'expense', archived: false, previousNames: [] };
+    const category = { id: `category-${Date.now()}`, name: '', label: '', icon: '📦', color: getNextCategoryColor(categories), type: 'expense', archived: false, previousNames: [] };
     onChange([...categories, category]);
     setEditingId(category.id);
   };

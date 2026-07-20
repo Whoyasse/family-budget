@@ -1,12 +1,13 @@
 import { supabase } from '../lib/supabase';
 import { throwSupabaseError } from './supabaseError';
+import { resolveCategoryColor } from '../utils/categoryColors';
 
 const mapCategory = (row) => ({
   id: row.id,
   name: row.name,
   label: row.name,
   icon: row.icon || '📦',
-  color: row.color || '#94A3B8',
+  color: resolveCategoryColor({ name: row.name, color: row.color }),
   type: row.type,
   archived: Boolean(row.archived_at),
   position: row.position ?? 0,
@@ -31,7 +32,7 @@ export async function createCategories(householdId, categories) {
     household_id: householdId,
     name: category.name,
     icon: category.icon,
-    color: category.color || '#94A3B8',
+    color: resolveCategoryColor(category),
     type: category.type,
     position
   }));
@@ -45,7 +46,7 @@ export async function saveCategory(householdId, category) {
     household_id: householdId,
     name: category.name.trim(),
     icon: category.icon,
-    color: category.color || '#94A3B8',
+    color: resolveCategoryColor(category),
     type: category.type,
     position: category.position ?? 0
   };
