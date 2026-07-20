@@ -22,7 +22,7 @@ function Comparison({ comparison, formatCurrency }) {
 
 function UserExpenseRow({ entry, formatCurrency, onOpenUser }) {
   const canOpenDetails = typeof onOpenUser === 'function';
-  const content = <><span>{entry.user.avatar}</span><div><strong>{entry.user.name}</strong><small>{entry.count} оп. · {entry.percent.toFixed(0)}%</small><div className="progress-bar"><div className="progress-fill" style={{ width: `${entry.percent}%` }} /></div></div><b className="responsive-money">{formatCurrency(entry.amount)}</b>{canOpenDetails ? <span className="analytics-user-action" aria-hidden="true">Детали ›</span> : null}</>;
+  const content = <><span className="analytics-user-avatar">{entry.user.avatar}</span><div className="analytics-user-info"><strong>{entry.user.name}</strong><small>{entry.count} оп. · {entry.percent.toFixed(0)}%</small></div><div className="analytics-user-amount"><b className="responsive-money">{formatCurrency(entry.amount)}</b>{canOpenDetails ? <span className="analytics-user-action" aria-hidden="true">›</span> : null}</div><div className="progress-bar"><div className="progress-fill" style={{ width: `${entry.percent}%` }} /></div></>;
   return canOpenDetails
     ? <button type="button" className="analytics-user-row" onClick={() => onOpenUser(entry.user)}>{content}</button>
     : <div className="analytics-user-row">{content}</div>;
