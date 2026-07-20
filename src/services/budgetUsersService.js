@@ -4,7 +4,7 @@ import { throwSupabaseError } from './supabaseError';
 export async function loadBudgetUsers(householdId) {
   const { data, error } = await supabase
     .from('budget_users')
-    .select('id,name,avatar,created_at')
+    .select('id,name,avatar,auth_user_id,created_at')
     .eq('household_id', householdId)
     .order('created_at');
   if (error) throwSupabaseError(error, 'budget_users.load');
@@ -15,7 +15,7 @@ export async function createBudgetUser(householdId, user) {
   const { data, error } = await supabase
     .from('budget_users')
     .insert({ household_id: householdId, name: user.name, avatar: user.avatar })
-    .select('id,name,avatar,created_at')
+    .select('id,name,avatar,auth_user_id,created_at')
     .single();
   if (error) throwSupabaseError(error, 'budget_users.create');
   return data;
@@ -27,7 +27,7 @@ export async function updateBudgetUser(householdId, id, user) {
     .update({ name: user.name, avatar: user.avatar })
     .eq('id', id)
     .eq('household_id', householdId)
-    .select('id,name,avatar,created_at')
+    .select('id,name,avatar,auth_user_id,created_at')
     .single();
   if (error) throwSupabaseError(error, 'budget_users.update');
   return data;

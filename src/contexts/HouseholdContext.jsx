@@ -12,6 +12,7 @@ const normalizeBudgetUser = (user) => ({
   id: user.id,
   name: user.name || '',
   avatar: user.avatar || '🧑',
+  authUserId: user.auth_user_id || null,
   archived: false,
   createdAt: user.created_at || new Date().toISOString()
 });
