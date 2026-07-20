@@ -97,6 +97,7 @@ function App() {
   const [settingsSection, setSettingsSection] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [analyticsTab, setAnalyticsTab] = useState('overview');
   const [categoryReturnView, setCategoryReturnView] = useState('home');
   const [journalTab, setJournalTab] = useState('calendar');
   const [loading, setLoading] = useState(true);
@@ -347,16 +348,6 @@ function App() {
       const currentDate = new Date(year, month - 1, dayOffset);
       const dayKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
       const dayTransactions = transactionsByDay[dayKey] || [];
-      const expenseTotals = dayTransactions
-        .filter((transaction) => transaction.type === 'Расход')
-        .reduce((acc, transaction) => {
-          acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-          return acc;
-        }, {});
-      const sortedCategories = Object.entries(expenseTotals)
-        .sort((a, b) => b[1] - a[1]);
-      const topCategories = sortedCategories.slice(0, 2);
-      const extraCategoryCount = Math.max(0, sortedCategories.length - topCategories.length);
 
       return {
         dayKey,
@@ -365,14 +356,13 @@ function App() {
         isCurrentMonth: currentDate.getMonth() === month - 1,
         isToday: dayKey === todayKey,
         transactions: dayTransactions,
+        transactionCount: dayTransactions.length,
         totalExpense: dayTransactions
           .filter((transaction) => transaction.type === 'Расход')
           .reduce((sum, transaction) => sum + transaction.amount, 0),
         totalIncome: dayTransactions
           .filter((transaction) => transaction.type === 'Доход')
-          .reduce((sum, transaction) => sum + transaction.amount, 0),
-        topCategories,
-        extraCategoryCount
+          .reduce((sum, transaction) => sum + transaction.amount, 0)
       };
     });
   }, [journalFilteredTransactions, selectedMonth]);
@@ -736,7 +726,6 @@ function App() {
       onSelectDay={handleSelectDay}
       formatCurrency={formatCurrency}
       getMonthLabel={getMonthLabel}
-      getCategoryIcon={getCategoryIcon}
     />
   );
 
@@ -980,12 +969,16 @@ function App() {
       filteredTransactions={homeFilteredTransactions}
       allTransactions={transactions}
       formatCurrency={formatCurrency}
+      formatTransactionDate={formatTransactionDate}
       getMonthLabel={getMonthLabel}
       getCategoryIcon={getCategoryIcon}
       onBack={() => setView('home')}
       onOpenCategory={(category) => handleOpenCategory(category, 'stats')}
+      onOpenTransaction={handleOpenTransactionDetails}
       users={familyUsers}
       categories={categories}
+      activeTab={analyticsTab}
+      onTabChange={setAnalyticsTab}
       onOpenUser={(user) => { setSelectedUser(user); setView('user'); }}
     />
   );
@@ -995,7 +988,7 @@ function App() {
     return <CategoryAnalyticsPage category={selectedCategory} selectedMonth={homeSelectedMonth} transactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} getCategoryIcon={getCategoryIcon} onBack={handleCloseCategory} onOpenTransaction={handleOpenTransactionDetails} />;
   };
 
-  const renderUserAnalytics = () => selectedUser ? <UserAnalyticsPage user={selectedUser} selectedMonth={homeSelectedMonth} monthlyTransactions={homeFilteredTransactions} allTransactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} onBack={() => setView('stats')} onOpenTransaction={handleOpenTransactionDetails} /> : null;
+  const renderUserAnalytics = () => selectedUser ? <UserAnalyticsPage user={selectedUser} selectedMonth={homeSelectedMonth} allTransactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} onBack={() => { setSelectedUser(null); setView('stats'); }} onOpenTransaction={handleOpenTransactionDetails} /> : null;
   const renderBalance = () => <BalancePage points={balancePoints} formatCurrency={formatCurrency} onBack={() => setView('home')} />;
 
   const openSettingsSection = (section) => {
