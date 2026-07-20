@@ -1,19 +1,10 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import { getCategoryIcon } from './data/categories';
+import { lazy, Suspense } from 'react';
 import { formatTransactionDate, getMonthKey, getMonthLabel, parseDate, parseTimeValue } from './utils/date';
 import { calculateExpenseBreakdown, calculateMonthlyTotals, calculateTotals } from './utils/statistics';
 import HomePage from './pages/HomePage';
-import CalendarPage from './pages/CalendarPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import HistoryPage from './pages/HistoryPage';
-import SettingsPage from './pages/SettingsPage';
 import TransactionWizard from './components/TransactionWizard';
-import TransactionEditSheet from './components/TransactionEditSheet';
-import CategoryLimitSheet from './components/CategoryLimitSheet';
-import CategoryManagerSheet from './components/CategoryManagerSheet';
-import CategoryAnalyticsPage from './pages/CategoryAnalyticsPage';
-import UserAnalyticsPage from './pages/UserAnalyticsPage';
-import BalancePage from './pages/BalancePage';
 import OnboardingWizard from './components/OnboardingWizard';
 import { ACCENTS, THEMES, createCustomAccent, getUserTransactionNames, loadSettings, persistSettings } from './utils/settingsStorage';
 import { exportTransactionsToXlsx } from './utils/exportTransactions';
@@ -39,6 +30,21 @@ const navItems = [
   { id: 'stats', icon: '📊', label: 'Аналитика' },
   { id: 'settings', icon: '⚙️', label: 'Настройки' }
 ];
+
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const HistoryPage = lazy(() => import('./pages/HistoryPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const TransactionEditSheet = lazy(() => import('./components/TransactionEditSheet'));
+const CategoryLimitSheet = lazy(() => import('./components/CategoryLimitSheet'));
+const CategoryManagerSheet = lazy(() => import('./components/CategoryManagerSheet'));
+const CategoryAnalyticsPage = lazy(() => import('./pages/CategoryAnalyticsPage'));
+const UserAnalyticsPage = lazy(() => import('./pages/UserAnalyticsPage'));
+const BalancePage = lazy(() => import('./pages/BalancePage'));
+
+function RouteLoading() {
+  return <div className="screen route-loading" aria-live="polite"><div className="card"><div className="loading-spinner" /><p>Загружаем экран…</p></div></div>;
+}
 
 function parseAmount(value) {
   if (value === null || value === undefined || value === '') return 0;
@@ -1008,7 +1014,7 @@ function App() {
       }
     }}
     onStatus={setStatus}
-    onExport={() => { try { exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } }}
+    onExport={async () => { try { await exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } }}
     onRestartOnboarding={() => { void restartOnboarding().catch((error) => { console.error(error); setStatus('Не удалось перезапустить настройку'); }); }}
     onManageCategories={() => setIsCategoryManagerOpen(true)}
     onSignOut={async () => {
@@ -1086,17 +1092,19 @@ function App() {
   return (
     <div className="app-shell">
       {status && <div className="toast">{status}</div>}
-      {view === 'home' && renderHome()}
-      {view === 'stats' && renderStats()}
-      {view === 'category' && renderCategoryDetail()}
-      {view === 'user' && renderUserAnalytics()}
-      {view === 'balance' && renderBalance()}
-      {view === 'journal' && renderJournal()}
-      {view === 'settings' && renderSettings()}
-      {renderAddSheet()}
-      {renderEditSheet()}
-      {renderCategoryLimitSheet()}
-      {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} onChange={handleCategoriesChange} onSaveCategory={handleSaveCategory} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => handleCategoryLimitChange(categoryId, homeSelectedMonth, value)} onDeleteCategory={async (category) => { try { if (/^[0-9a-f-]{36}$/i.test(category.id)) await deleteCategory(householdId, category.id); setCategories((current) => current.filter((item) => item.id !== category.id)); setStatus(`✓ Категория ${category.name} удалена`); } catch (error) { console.error(error); setStatus('Не удалось удалить категорию. Попробуйте ещё раз.'); throw error; } }} /> : null}
+      <Suspense fallback={<RouteLoading />}>
+        {view === 'home' && renderHome()}
+        {view === 'stats' && renderStats()}
+        {view === 'category' && renderCategoryDetail()}
+        {view === 'user' && renderUserAnalytics()}
+        {view === 'balance' && renderBalance()}
+        {view === 'journal' && renderJournal()}
+        {view === 'settings' && renderSettings()}
+        {renderAddSheet()}
+        {renderEditSheet()}
+        {renderCategoryLimitSheet()}
+        {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} onChange={handleCategoriesChange} onSaveCategory={handleSaveCategory} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => handleCategoryLimitChange(categoryId, homeSelectedMonth, value)} onDeleteCategory={async (category) => { try { if (/^[0-9a-f-]{36}$/i.test(category.id)) await deleteCategory(householdId, category.id); setCategories((current) => current.filter((item) => item.id !== category.id)); setStatus(`✓ Категория ${category.name} удалена`); } catch (error) { console.error(error); setStatus('Не удалось удалить категорию. Попробуйте ещё раз.'); throw error; } }} /> : null}
+      </Suspense>
       {renderCalendarDaySheet()}
       {renderTransactionDetailSheet()}
       {isDeleteConfirmOpen && selectedTransaction ? (
