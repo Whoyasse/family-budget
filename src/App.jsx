@@ -961,10 +961,12 @@ function App() {
       filteredTransactions={homeFilteredTransactions}
       allTransactions={transactions}
       formatCurrency={formatCurrency}
+      formatTransactionDate={formatTransactionDate}
       getMonthLabel={getMonthLabel}
       getCategoryIcon={getCategoryIcon}
       onBack={() => setView('home')}
       onOpenCategory={(category) => handleOpenCategory(category, 'stats')}
+      onOpenTransaction={handleOpenTransactionDetails}
       users={familyUsers}
       categories={categories}
       onOpenUser={(user) => { setSelectedUser(user); setView('user'); }}

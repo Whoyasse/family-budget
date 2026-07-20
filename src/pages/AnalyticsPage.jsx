@@ -1,62 +1,62 @@
 import { useMemo, useState } from 'react';
-import { expenseCategories, getCategoryColor } from '../data/categories';
-import { calculateTotals } from '../utils/statistics';
-import { getAllTimeCategoryStats } from '../utils/categoryAnalytics';
-import { formatTransactionDate } from '../utils/date';
-import { getUserTransactionNames } from '../utils/settingsStorage';
+import { formatTransactionDate, getMonthLabel } from '../utils/date';
+import {
+  ANALYTICS_PERIODS, filterAnalyticsPeriod, getAnalyticsRange, getAnalyticsSummary, getCategoryAnalytics,
+  getComparison, getDailySeries, getExpenseAverages, getMonthForecast, getMonthlySeries,
+  getMostExpensiveDay, getPreviousAnalyticsRange, getTopTransactions, getUserExpenses
+} from '../utils/analytics';
 
-function AnalyticsPage({ monthlyTotals, expenseBreakdown, totalExpense, selectedMonth, filteredTransactions, allTransactions, users = [], categories = expenseCategories, formatCurrency, getMonthLabel, getCategoryIcon, onBack, onOpenCategory, onOpenUser }) {
-  const [activeTab, setActiveTab] = useState('charts');
-  const selectedMonthSummary = useMemo(() => monthlyTotals.find(([month]) => month === selectedMonth)?.[1] || { income: 0, expense: 0 }, [monthlyTotals, selectedMonth]);
-  const chartData = useMemo(() => expenseBreakdown.map((item) => ({ ...item, percent: (item.sum / Math.max(totalExpense, 1)) * 100, color: getCategoryColor(item.category) })), [expenseBreakdown, totalExpense]);
-  const donutSegments = useMemo(() => {
-    let cumulative = 0;
-    return chartData.map((item) => {
-      const start = cumulative;
-      cumulative += item.percent;
-      return { ...item, start };
-    });
-  }, [chartData]);
-  const allTimeSummary = useMemo(() => calculateTotals(allTransactions), [allTransactions]);
-  const userStats = useMemo(() => users.map((user) => {
-    const names = getUserTransactionNames(user);
-    const operations = filteredTransactions.filter((transaction) => names.has(transaction.person));
-    const totals = calculateTotals(operations);
-    return { user, income: totals.income, expense: totals.expense, count: operations.length };
-  }), [filteredTransactions, users]);
-  const allCategories = useMemo(() => categories.filter((category) => category.type === 'expense' || !category.type)
-    .map((category) => ({ ...category, ...getAllTimeCategoryStats(allTransactions, category.label) }))
-    .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'ru')), [allTransactions, categories]);
+function changeLabel(metric, formatCurrency) {
+  if (metric.percent === null) return 'Нет данных для сравнения';
+  const direction = metric.change > 0 ? '↑' : metric.change < 0 ? '↓' : '→';
+  return `${direction} ${formatCurrency(Math.abs(metric.change))} · ${Math.abs(metric.percent).toFixed(0)}%`;
+}
 
-  const renderCharts = () => (
-    <div className="stack analytics-stack">
-      <section className="card analytics-card"><div className="section-title"><h4>Итоги месяца</h4><span>{getMonthLabel(selectedMonth)}</span></div><div className="summary-grid analytics-summary-grid"><div className="card summary-card income"><p>Доход</p><strong>{formatCurrency(selectedMonthSummary.income)}</strong></div><div className="card summary-card expense"><p>Расход</p><strong>{formatCurrency(selectedMonthSummary.expense)}</strong></div><div className="card summary-card"><p>Баланс месяца</p><strong>{formatCurrency(selectedMonthSummary.income - selectedMonthSummary.expense)}</strong></div></div></section>
-      <section className="card analytics-card">
-        <div className="section-title"><h4>Распределение расходов</h4><span>{formatCurrency(totalExpense)}</span></div>
-        {chartData.length === 0 ? <div className="empty-state"><p>Пока нет расходов за этот месяц.</p></div> : <div className="chart-layout"><div className="chart-shell"><svg viewBox="0 0 120 120" className="donut-chart" aria-label="Распределение расходов"><circle cx="60" cy="60" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="18" />{donutSegments.map((segment) => { const radius = 42; const circumference = 2 * Math.PI * radius; const length = (segment.percent / 100) * circumference; const visibleLength = Math.max(0, length - Math.min(2, length * 0.18)); return <circle key={segment.category} cx="60" cy="60" r={radius} fill="none" stroke={segment.color} strokeWidth="18" strokeLinecap="butt" strokeDasharray={`${visibleLength} ${circumference - visibleLength}`} strokeDashoffset={-(segment.start / 100) * circumference} transform="rotate(-90 60 60)" />; })}</svg><div className="chart-center"><strong>{formatCurrency(totalExpense)}</strong><span>расходов</span></div></div><div className="chart-legend">{chartData.map((segment) => <button key={segment.category} type="button" className="legend-row category-link-row" onClick={() => onOpenCategory(segment.category)}><div className="legend-marker" style={{ backgroundColor: segment.color }} /><div className="legend-label"><span>{getCategoryIcon(segment.category)} {segment.category}</span><small><b className="category-percent">{segment.percent.toFixed(0)}%</b> · {formatCurrency(segment.sum)}</small></div></button>)}</div></div>}
-      </section>
-    </div>
-  );
+function Empty({ children }) { return <div className="empty-state analytics-empty"><span aria-hidden="true">📊</span><p>{children}</p></div>; }
 
-  const renderCategories = () => (
-    <section className="card analytics-card"><div className="section-title"><h4>Категории расходов</h4><span>{formatCurrency(totalExpense)}</span></div>{expenseBreakdown.length === 0 ? <div className="empty-state"><p>Пока нет расходов за этот месяц.</p></div> : <div className="category-list">{expenseBreakdown.map((item) => { const percent = totalExpense > 0 ? (item.sum / totalExpense) * 100 : 0; return <button key={item.category} type="button" className="category-row category-link-row" onClick={() => onOpenCategory(item.category)}><div className="category-row__main"><span className="category-icon">{getCategoryIcon(item.category)}</span><div><strong>{item.category}</strong><p>{formatCurrency(item.sum)}</p></div></div><div className="category-row__meta"><span>{percent.toFixed(0)}%</span><div className="progress-bar category-progress"><div className="progress-fill" style={{ width: `${Math.max(6, percent)}%`, backgroundColor: getCategoryColor(item.category) }} /></div></div></button>; })}</div>}</section>
-  );
+function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurrency, getCategoryIcon, onBack, onOpenCategory, onOpenUser, onOpenTransaction }) {
+  const [periodId, setPeriodId] = useState('current');
+  const range = useMemo(() => getAnalyticsRange(selectedMonth, periodId), [selectedMonth, periodId]);
+  const periodTransactions = useMemo(() => filterAnalyticsPeriod(allTransactions, range), [allTransactions, range]);
+  const previousTransactions = useMemo(() => filterAnalyticsPeriod(allTransactions, getPreviousAnalyticsRange(range)), [allTransactions, range]);
+  const summary = useMemo(() => getAnalyticsSummary(periodTransactions), [periodTransactions]);
+  const previousSummary = useMemo(() => getAnalyticsSummary(previousTransactions), [previousTransactions]);
+  const comparison = useMemo(() => getComparison(summary, previousSummary), [summary, previousSummary]);
+  const categories = useMemo(() => getCategoryAnalytics(periodTransactions), [periodTransactions]);
+  const previousCategories = useMemo(() => new Map(getCategoryAnalytics(previousTransactions).map((item) => [item.category, item.amount])), [previousTransactions]);
+  const topOperations = useMemo(() => getTopTransactions(periodTransactions), [periodTransactions]);
+  const userExpenses = useMemo(() => getUserExpenses(periodTransactions, users), [periodTransactions, users]);
+  const averages = useMemo(() => getExpenseAverages(periodTransactions, range), [periodTransactions, range]);
+  const expensiveDay = useMemo(() => getMostExpensiveDay(periodTransactions), [periodTransactions]);
+  const forecast = useMemo(() => getMonthForecast(periodTransactions, selectedMonth), [periodTransactions, selectedMonth]);
+  const timeSeries = useMemo(() => range.months === 1 ? getDailySeries(periodTransactions, range) : getMonthlySeries(periodTransactions, range), [periodTransactions, range]);
+  const sixMonthRange = useMemo(() => getAnalyticsRange(selectedMonth, 'six'), [selectedMonth]);
+  const monthComparison = useMemo(() => getMonthlySeries(filterAnalyticsPeriod(allTransactions, sixMonthRange), sixMonthRange), [allTransactions, sixMonthRange]);
+  const maxTimeline = Math.max(1, ...timeSeries.map((item) => Math.max(item.income, item.expense)));
+  const maxMonth = Math.max(1, ...monthComparison.map((item) => Math.max(item.income, item.expense)));
+  const periodLabel = range.start === range.end ? getMonthLabel(range.end) : `${getMonthLabel(range.start)} — ${getMonthLabel(range.end)}`;
 
-  const renderUsers = () => (
-    <div className="stack analytics-stack">
-      <section className="card analytics-card all-time-summary-card"><p className="eyebrow">Семья за месяц</p><div className="all-time-summary-grid"><div><span>Доходы</span><strong className="positive">{formatCurrency(selectedMonthSummary.income)}</strong></div><div><span>Расходы</span><strong className="negative">{formatCurrency(selectedMonthSummary.expense)}</strong></div><div><span>Баланс</span><strong>{formatCurrency(selectedMonthSummary.income - selectedMonthSummary.expense)}</strong></div></div></section>
-      <section className="card analytics-card"><div className="section-title"><h4>Пользователи</h4><span>{users.length}</span></div><div className="category-list">{userStats.map(({ user, income, expense, count }) => <button type="button" key={user.id} className="category-row category-link-row" onClick={() => onOpenUser?.(user)}><div className="category-row__main"><span className="category-icon">{user.avatar}</span><div><strong>{user.name}{user.archived ? ' · Архив' : ''}</strong><p>Доход {formatCurrency(income)} · Расход {formatCurrency(expense)}</p><p>{count} операций · {(totalExpense ? expense / totalExpense * 100 : 0).toFixed(0)}% семейных расходов</p></div></div><div className="category-row__meta"><span className={income - expense >= 0 ? 'positive' : 'negative'}>{formatCurrency(income - expense)}</span></div></button>)}</div></section>
-    </div>
-  );
-
-  const renderAllCategories = () => (
-    <div className="stack analytics-stack">
-      <section className="card analytics-card all-time-summary-card"><p className="eyebrow">За всё время</p><div className="all-time-summary-grid"><div><span>Доходы</span><strong className="positive">{formatCurrency(allTimeSummary.income)}</strong></div><div><span>Расходы</span><strong className="negative">{formatCurrency(allTimeSummary.expense)}</strong></div><div><span>Баланс</span><strong>{formatCurrency(allTimeSummary.income - allTimeSummary.expense)}</strong></div></div></section>
-      <section className="card analytics-card"><div className="section-title"><h4>Все категории</h4><span>{expenseCategories.length}</span></div><div className="category-list all-categories-list">{allCategories.map((category) => <button key={category.label} type="button" className="category-row category-link-row" onClick={() => onOpenCategory(category.label)}><div className="category-row__main"><span className="category-icon">{category.icon}</span><div><strong>{category.label}</strong>{category.count ? <p>{formatCurrency(category.total)} · {category.count} {category.count === 1 ? 'операция' : 'операций'}</p> : <p>Нет операций</p>}</div></div><div className="category-row__meta all-categories-meta">{category.lastTransaction ? <span>{formatTransactionDate(category.lastTransaction.date, category.lastTransaction.time)}</span> : <span>—</span>}</div></button>)}</div></section>
-    </div>
-  );
-
-  return <div className="screen analytics-screen"><header className="topbar"><div><p className="eyebrow">Статистика</p><h2>Аналитика</h2></div><button className="ghost-btn" onClick={onBack}>Назад</button></header><div className="card analytics-tabs"><button type="button" className={`analytics-tab ${activeTab === 'charts' ? 'active' : ''}`} onClick={() => setActiveTab('charts')}>Диаграммы</button><button type="button" className={`analytics-tab ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>Пользователи</button><button type="button" className={`analytics-tab ${activeTab === 'all-categories' ? 'active' : ''}`} onClick={() => setActiveTab('all-categories')}>Все категории</button></div>{activeTab === 'charts' && renderCharts()}{activeTab === 'users' && renderUsers()}{activeTab === 'all-categories' && renderAllCategories()}</div>;
+  return <div className="screen analytics-screen advanced-analytics-screen">
+    <header className="topbar"><div><p className="eyebrow">Статистика</p><h2>Аналитика</h2><p className="muted">{periodLabel}</p></div><button className="ghost-btn" type="button" onClick={onBack}>Назад</button></header>
+    <section className="card analytics-periods" aria-label="Период аналитики"><div className="period-scroll">{ANALYTICS_PERIODS.map((period) => <button key={period.id} type="button" className={periodId === period.id ? 'active' : ''} onClick={() => setPeriodId(period.id)}>{period.label}</button>)}</div></section>
+    {!periodTransactions.length ? <Empty>Добавьте несколько операций, чтобы увидеть аналитику за выбранный период.</Empty> : <>
+      <section className="card"><div className="section-title"><h4>Главное за период</h4><span>{summary.count} оп.</span></div><div className="analytics-kpi-grid">
+        <div><span>Доход</span><strong className="positive">{formatCurrency(summary.income)}</strong><small>{changeLabel(comparison.income, formatCurrency)}</small></div>
+        <div><span>Расход</span><strong className="negative">{formatCurrency(summary.expense)}</strong><small>{changeLabel(comparison.expense, formatCurrency)}</small></div>
+        <div><span>Разница</span><strong className={summary.balance < 0 ? 'negative' : 'positive'}>{formatCurrency(summary.balance)}</strong><small>{changeLabel(comparison.balance, formatCurrency)}</small></div>
+        <div><span>Расход в день</span><strong>{formatCurrency(averages.perCalendarDay)}</strong><small>за календарный день</small></div>
+      </div></section>
+      {expensiveDay ? <section className="card analytics-insight"><div><p className="eyebrow">Самый дорогой день</p><strong>{formatTransactionDate(expensiveDay.date)}</strong><p>{formatCurrency(expensiveDay.amount)} · {expensiveDay.count} оп. · {getCategoryIcon(expensiveDay.category)} {expensiveDay.category}</p></div></section> : null}
+      <section className="card"><div className="section-title"><h4>Доходы и расходы</h4><span>{range.months === 1 ? 'По дням' : 'По месяцам'}</span></div><div className="analytics-bars timeline-bars">{timeSeries.map((item) => <div className="analytics-bar" key={item.key} title={`${item.label || getMonthLabel(item.key)}: доход ${formatCurrency(item.income)}, расход ${formatCurrency(item.expense)}`}><div className="analytics-bar__pair"><i className="income-bar" style={{ height: `${item.income / maxTimeline * 100}%` }} /><i className="expense-bar" style={{ height: `${item.expense / maxTimeline * 100}%` }} /></div><small>{range.months === 1 ? item.label : getMonthLabel(item.key).slice(0, 3)}</small></div>)}</div><p className="chart-caption"><span className="income-dot" /> Доход <span className="expense-dot" /> Расход</p></section>
+      <section className="card"><div className="section-title"><h4>Расходы по категориям</h4><span>{formatCurrency(summary.expense)}</span></div>{categories.length ? <div className="analytics-category-list">{categories.slice(0, 6).map((item) => <button key={item.category} type="button" className="analytics-category-row" onClick={() => onOpenCategory(item.category)}><span>{getCategoryIcon(item.category)}</span><div><strong>{item.category}</strong><small>{formatCurrency(item.amount)} · {item.percent.toFixed(0)}%</small><div className="progress-bar"><div className="progress-fill" style={{ width: `${item.percent}%` }} /></div></div></button>)}</div> : <Empty>За выбранный период расходов не было.</Empty>}</section>
+      <section className="card"><div className="section-title"><h4>Самые большие расходы</h4><span>Топ-5</span></div>{categories.length ? <div className="top-category-list">{categories.slice(0, 5).map((item) => { const previous = previousCategories.get(item.category) || 0; const change = item.amount - previous; return <button key={item.category} type="button" className="top-category-row" onClick={() => onOpenCategory(item.category)}><span>{getCategoryIcon(item.category)}</span><strong>{item.category}</strong><b>{formatCurrency(item.amount)}</b><small>{previous ? `${change >= 0 ? '↑' : '↓'} ${formatCurrency(Math.abs(change))}` : 'Нет сравнения'}</small></button>; })}</div> : null}</section>
+      <section className="card"><div className="section-title"><h4>Крупные операции</h4><span>Топ-5</span></div><div className="transaction-list">{topOperations.map((item) => <button key={item.id} type="button" className="transaction-item transaction-item--interactive" onClick={() => onOpenTransaction?.(item)}><div className="transaction-icon">{getCategoryIcon(item.category)}</div><div className="transaction-info"><strong>{item.category}</strong><p>• {item.person}</p>{item.comment ? <p className="transaction-comment">{item.comment}</p> : null}</div><div className="transaction-meta"><span className="amount negative">-{formatCurrency(item.amount)}</span><p>{formatTransactionDate(item.date, item.time)}</p></div></button>)}</div></section>
+      {userExpenses.length > 1 ? <section className="card"><div className="section-title"><h4>Расходы по участникам</h4><span>{userExpenses.length}</span></div>{userExpenses.map(({ user, amount, count, percent }) => <button key={user.id} type="button" className="analytics-user-row" onClick={() => onOpenUser?.(user)}><span>{user.avatar}</span><strong>{user.name}</strong><small>{count} оп. · {percent.toFixed(0)}%</small><b>{formatCurrency(amount)}</b></button>)}</section> : null}
+      <section className="card"><div className="section-title"><h4>Средние расходы</h4></div><div className="analytics-average-grid"><div><span>Календарный день</span><strong>{formatCurrency(averages.perCalendarDay)}</strong></div><div><span>День с тратами</span><strong>{formatCurrency(averages.perSpendingDay)}</strong></div><div><span>Одна операция</span><strong>{formatCurrency(averages.perOperation)}</strong></div></div></section>
+      {forecast ? <section className="card analytics-insight"><p className="eyebrow">Прогноз до конца месяца</p><strong>{formatCurrency(forecast.projected)}</strong><p>Потрачено {formatCurrency(forecast.spent)}. Линейная оценка по {forecast.elapsed} прошедшим дням — не точный прогноз.</p></section> : null}
+      <section className="card"><div className="section-title"><h4>Сравнение месяцев</h4><span>6 месяцев</span></div><div className="analytics-bars month-bars">{monthComparison.map((item) => <div className="analytics-bar" key={item.key}><div className="analytics-bar__pair"><i className="income-bar" style={{ height: `${item.income / maxMonth * 100}%` }} /><i className="expense-bar" style={{ height: `${item.expense / maxMonth * 100}%` }} /></div><small>{getMonthLabel(item.key).slice(0, 3)}</small></div>)}</div></section>
+    </>}
+  </div>;
 }
 
 export default AnalyticsPage;
