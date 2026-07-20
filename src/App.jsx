@@ -329,16 +329,6 @@ function App() {
       const currentDate = new Date(year, month - 1, dayOffset);
       const dayKey = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
       const dayTransactions = transactionsByDay[dayKey] || [];
-      const expenseTotals = dayTransactions
-        .filter((transaction) => transaction.type === 'Расход')
-        .reduce((acc, transaction) => {
-          acc[transaction.category] = (acc[transaction.category] || 0) + transaction.amount;
-          return acc;
-        }, {});
-      const sortedCategories = Object.entries(expenseTotals)
-        .sort((a, b) => b[1] - a[1]);
-      const topCategories = sortedCategories.slice(0, 2);
-      const extraCategoryCount = Math.max(0, sortedCategories.length - topCategories.length);
 
       return {
         dayKey,
@@ -347,14 +337,13 @@ function App() {
         isCurrentMonth: currentDate.getMonth() === month - 1,
         isToday: dayKey === todayKey,
         transactions: dayTransactions,
+        transactionCount: dayTransactions.length,
         totalExpense: dayTransactions
           .filter((transaction) => transaction.type === 'Расход')
           .reduce((sum, transaction) => sum + transaction.amount, 0),
         totalIncome: dayTransactions
           .filter((transaction) => transaction.type === 'Доход')
-          .reduce((sum, transaction) => sum + transaction.amount, 0),
-        topCategories,
-        extraCategoryCount
+          .reduce((sum, transaction) => sum + transaction.amount, 0)
       };
     });
   }, [journalFilteredTransactions, selectedMonth]);
@@ -718,7 +707,6 @@ function App() {
       onSelectDay={handleSelectDay}
       formatCurrency={formatCurrency}
       getMonthLabel={getMonthLabel}
-      getCategoryIcon={getCategoryIcon}
     />
   );
 

@@ -2502,6 +2502,17 @@ button.category-row,
 .primary-btn:disabled, .danger-btn:disabled { cursor: wait; opacity: .62; }
 .progress-fill { transition: width 220ms ease; }
 button:focus-visible, [role="button"]:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+
+/* Calendar activity heatmap: count of operations, not category icons. */
+.calendar-day.has-operations { background-color: var(--calendar-heat) !important; border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--theme-border)) !important; }
+.calendar-day.has-operations:hover { background-color: color-mix(in srgb, var(--accent-primary) 68%, var(--calendar-heat)) !important; border-color: var(--accent-bright) !important; }
+.calendar-day__count { display: grid; min-width: 22px; min-height: 20px; place-items: center; align-self: flex-start; padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, var(--theme-surface) 55%, transparent); color: var(--theme-text); font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+.calendar-heat-legend { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 13px; color: var(--theme-muted); font-size: .7rem; }
+.calendar-heat-legend i { width: 13px; height: 13px; border: 1px solid color-mix(in srgb, var(--accent-primary) 35%, var(--theme-border)); border-radius: 4px; }
+.calendar-heat-legend .heat-level-1 { background: color-mix(in srgb, var(--accent-primary) 12%, var(--theme-surface)); }
+.calendar-heat-legend .heat-level-2 { background: color-mix(in srgb, var(--accent-primary) 24%, var(--theme-surface)); }
+.calendar-heat-legend .heat-level-3 { background: color-mix(in srgb, var(--accent-primary) 40%, var(--theme-surface)); }
+.calendar-heat-legend .heat-level-4 { background: color-mix(in srgb, var(--accent-primary) 58%, var(--theme-surface)); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 1ms !important; }
 }
