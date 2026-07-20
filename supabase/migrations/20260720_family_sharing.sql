@@ -76,10 +76,12 @@ begin
   update public.household_invites as hi set revoked_at = now()
   where hi.household_id = current_household and hi.used_at is null and hi.revoked_at is null and hi.expires_at > now();
 
-  raw := gen_random_bytes(8); generated_code := '';
+  -- Supabase installs pgcrypto in the extensions schema; the SECURITY DEFINER
+  -- search_path deliberately excludes it, so every pgcrypto call is qualified.
+  raw := extensions.gen_random_bytes(8); generated_code := '';
   for i in 0..7 loop generated_code := generated_code || substr(alphabet, (get_byte(raw, i) % length(alphabet)) + 1, 1); end loop;
   generated_code := substr(generated_code, 1, 4) || '-' || substr(generated_code, 5, 4);
-  generated_hash := encode(digest(public.normalize_household_invite_code(generated_code), 'sha256'), 'hex');
+  generated_hash := encode(extensions.digest(public.normalize_household_invite_code(generated_code), 'sha256'), 'hex');
 
   insert into public.household_invites (household_id, code_hash, code_hint, created_by, expires_at)
   values (current_household, generated_hash, right(public.normalize_household_invite_code(generated_code), 2), auth.uid(), now() + interval '24 hours')
@@ -100,7 +102,7 @@ begin
   if auth.uid() is null then raise exception 'not_authenticated' using errcode = '42501'; end if;
   if length(normalized_code) < 6 then raise exception 'invalid_invite_code' using errcode = '22023'; end if;
   if exists (select 1 from public.household_members hm where hm.auth_user_id = auth.uid()) then raise exception 'already_in_household' using errcode = '23505'; end if;
-  invite_hash := encode(digest(normalized_code, 'sha256'), 'hex');
+  invite_hash := encode(extensions.digest(normalized_code, 'sha256'), 'hex');
   select * into invite_row from public.household_invites hi where hi.code_hash = invite_hash for update;
   if not found then raise exception 'invalid_invite_code' using errcode = '22023'; end if;
   if invite_row.revoked_at is not null then raise exception 'invite_revoked' using errcode = '22023'; end if;
