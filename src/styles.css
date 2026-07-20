@@ -2344,3 +2344,31 @@ button.category-row,
 .auth-reset {
   justify-self: start;
 }
+
+/* UX polish: quiet feedback and resilient small-screen layouts. */
+.skeleton-stack { display: grid; gap: 10px; }
+.skeleton { display: block; border-radius: 10px; background: color-mix(in srgb, var(--theme-text) 10%, var(--theme-surface)); }
+.skeleton-row { height: 64px; }
+.skeleton-text { width: 10ch; height: 1em; }
+.skeleton-text--large { width: 8ch; height: 1.25em; }
+.empty-state { display: grid; justify-items: center; gap: 8px; padding: 20px 8px 8px; text-align: center; }
+.empty-state p { max-width: 32ch; margin: 0; color: var(--theme-muted); font-size: .9rem; }
+.empty-state strong { color: var(--theme-text); }
+.empty-state__icon { font-size: 1.45rem; }
+.compact-empty { padding-top: 12px; }
+.form-help, .field-error { margin: 2px 0 0; font-size: .82rem; line-height: 1.45; }
+.form-help { color: var(--theme-muted); }
+.field-error { color: #ff8b8b; }
+.transaction-edit-context { margin: 3px 0 0; color: var(--theme-muted); font-size: .86rem; }
+.category-manager-row { width: 100%; min-height: 64px; text-align: left; }
+.category-row__chevron { margin-left: auto; color: var(--theme-muted); font-size: 1.5rem; }
+.inline-confirm { display: grid; gap: 9px; margin-top: 6px; padding: 12px; border: 1px solid rgba(255, 120, 120, .55); border-radius: 14px; background: rgba(150, 35, 35, .13); }
+.inline-confirm p { margin: 0; color: var(--theme-muted); font-size: .84rem; }
+.inline-confirm > div { display: flex; justify-content: flex-end; gap: 8px; }
+.danger-btn { min-height: 42px; padding: 0 14px; border: 0; border-radius: 12px; background: #d95858; color: #fff; font-weight: 700; }
+.primary-btn:disabled, .danger-btn:disabled { cursor: wait; opacity: .62; }
+.progress-fill { transition: width 220ms ease; }
+button:focus-visible, [role="button"]:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 1ms !important; }
+}

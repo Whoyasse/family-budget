@@ -22,6 +22,7 @@ function TransactionWizard({
   const touchStartYRef = useRef(null);
   const amount = Number(String(form.amount || '').replace(',', '.'));
   const canContinue = Number.isFinite(amount) && amount > 0;
+  const hasCategories = categoryOptions.length > 0;
 
   useEffect(() => {
     if (step !== 4) return undefined;
@@ -88,7 +89,7 @@ function TransactionWizard({
               <button
                 key={category.label}
                 type="button"
-                className="category-btn"
+                className={`category-btn ${form.category === category.label ? 'active' : ''}`}
                 onClick={() => {
                   onCategorySelect(category.label);
                   setStep(4);
@@ -99,6 +100,7 @@ function TransactionWizard({
               </button>
             ))}
           </div>
+          {!hasCategories ? <p className="form-help">Для этого типа операции пока нет категорий. Добавьте её в настройках.</p> : null}
         </div>
       );
     }
@@ -121,6 +123,7 @@ function TransactionWizard({
               onChange={onChange}
             />
           </label>
+          {form.amount !== '' && !canContinue ? <p className="field-error">Введите сумму больше нуля.</p> : null}
           <button className="primary-btn wizard-primary" type="button" disabled={!canContinue || isRateLoading} onClick={() => setStep(5)}>
             {isRateLoading ? 'Загружаю курс…' : 'Продолжить'}
           </button>
@@ -144,7 +147,7 @@ function TransactionWizard({
         <button className="receipt-placeholder-btn" type="button" onClick={onReceiptClick}>
           📎 Прикрепить чек
         </button>
-        <button className="primary-btn wizard-primary" type="submit" disabled={loading || isSubmitting || isRateLoading}>
+        <button className="primary-btn wizard-primary" type="submit" disabled={!canContinue || !form.person || !form.category || loading || isSubmitting || isRateLoading}>
           {isSubmitting ? 'Сохраняю…' : 'Сохранить'}
         </button>
       </div>

@@ -23,7 +23,6 @@ import { getCategoryLimit } from './utils/categoryStorage';
 import { createTransaction, deleteTransaction, loadTransactions, updateTransaction } from './services/transactionsService';
 import { createCategories, deleteCategory, loadCategories as loadSupabaseCategories, loadCategoryLimits, saveCategory, saveCategoryLimit } from './services/categoriesService';
 import { loadHouseholdSettings, saveHouseholdSettings } from './services/settingsService';
-import { describeSupabaseError } from './services/supabaseError';
 import { useAuth } from './contexts/AuthContext';
 import { useHousehold } from './contexts/HouseholdContext';
 import AuthPage from './pages/AuthPage';
@@ -131,7 +130,7 @@ function App() {
       return parsed;
     } catch (error) {
       console.error(error);
-      setStatus(describeSupabaseError(error, 'Ошибка загрузки операций'));
+      setStatus('Не удалось загрузить данные. Проверьте подключение к интернету и попробуйте ещё раз.');
       return [];
     } finally {
       if (showLoading) {
@@ -162,7 +161,7 @@ function App() {
           }));
         }
       })
-      .catch((error) => { console.error(error); if (!cancelled) setStatus(describeSupabaseError(error, 'Не удалось загрузить данные семьи')); });
+      .catch((error) => { console.error(error); if (!cancelled) setStatus('Не удалось загрузить данные. Проверьте подключение к интернету и попробуйте ещё раз.'); });
     return () => { cancelled = true; };
   }, [authUser, householdId]);
 
@@ -222,6 +221,28 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [isAddSheetOpen]);
+
+  useEffect(() => {
+    const isOverlayOpen = isAddSheetOpen || isEditSheetOpen || isTransactionDetailOpen || isDaySheetOpen || isDeleteConfirmOpen || Boolean(limitCategory) || isCategoryManagerOpen;
+    if (!isOverlayOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      setIsAddSheetOpen(false);
+      setIsEditSheetOpen(false);
+      setIsTransactionDetailOpen(false);
+      setIsDaySheetOpen(false);
+      setIsDeleteConfirmOpen(false);
+      setLimitCategory(null);
+      setIsCategoryManagerOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isAddSheetOpen, isEditSheetOpen, isTransactionDetailOpen, isDaySheetOpen, isDeleteConfirmOpen, limitCategory, isCategoryManagerOpen]);
 
   const availableMonths = useMemo(() => {
     const months = new Set([homeSelectedMonth]);
@@ -411,7 +432,7 @@ function App() {
       setStatus('Начальный баланс сохранён');
     } catch (error) {
       console.error(error);
-      setStatus('Не удалось сохранить баланс');
+      setStatus('Не удалось сохранить баланс. Попробуйте ещё раз.');
     }
   };
 
@@ -424,7 +445,7 @@ function App() {
       });
     } catch (error) {
       console.error(error);
-      setStatus('Не удалось сохранить настройки валюты');
+      setStatus('Не удалось сохранить настройки. Попробуйте ещё раз.');
     }
   };
 
@@ -440,7 +461,7 @@ function App() {
       return saved;
     } catch (error) {
       console.error(error);
-      setStatus('Не удалось сохранить категорию');
+      setStatus('Не удалось сохранить категорию. Попробуйте ещё раз.');
       void loadSupabaseCategories(householdId).then(setCategories);
       throw error;
     }
@@ -453,7 +474,7 @@ function App() {
       setStatus(value ? 'Лимит сохранён' : 'Лимит убран');
     } catch (error) {
       console.error(error);
-      setStatus(describeSupabaseError(error, 'Не удалось сохранить лимит'));
+      setStatus('Не удалось изменить лимит. Попробуйте ещё раз.');
       throw error;
     }
   };
@@ -568,11 +589,11 @@ function App() {
       setIsTransactionDetailOpen(false);
       setIsDeleteConfirmOpen(false);
       setSelectedTransaction(null);
-      setStatus('Удалено');
+      setStatus('✓ Операция удалена');
       setLoading(false);
     } catch (error) {
       console.error(error);
-      setStatus(error.message || 'Не удалось удалить');
+      setStatus('Не удалось удалить операцию. Попробуйте ещё раз.');
       setLoading(false);
     }
   };
@@ -582,7 +603,10 @@ function App() {
     if (isSubmitting) return;
 
     const enteredAmount = parseAmount(form.amount);
-    if (!enteredAmount) return;
+    if (!enteredAmount || enteredAmount <= 0) {
+      setStatus('Введите сумму больше нуля.');
+      return;
+    }
     if (!exchangeRate) {
       setStatus('Дождитесь загрузки курса валют');
       return;
@@ -609,10 +633,10 @@ function App() {
       setSelectedTransaction(null);
       setForm((prev) => ({ ...prev, amount: '', comment: '' }));
       setView('home');
-      setStatus(isEditing ? 'Изменено' : 'Добавлено');
+      setStatus(isEditing ? '✓ Операция изменена' : '✓ Операция сохранена');
     } catch (error) {
       console.error(error);
-      setStatus(describeSupabaseError(error, 'Ошибка сохранения операции'));
+      setStatus('Не удалось сохранить операцию. Попробуйте ещё раз.');
     } finally {
       setIsSubmitting(false);
     }
@@ -635,7 +659,7 @@ function App() {
       setForm((current) => ({ ...current, person: users.find((user) => !user.archived)?.name || current.person }));
     } catch (error) {
       console.error(error);
-      const message = describeSupabaseError(error, 'Не удалось сохранить настройку семьи');
+      const message = 'Не удалось сохранить настройку семьи. Проверьте подключение и попробуйте ещё раз.';
       setStatus(message);
       throw new Error(message);
     }
@@ -661,6 +685,8 @@ function App() {
       onOpenCategory={(category) => handleOpenCategory(category, 'home')}
       onOpenLimit={setLimitCategory}
       onOpenBalance={() => setView('balance')}
+      loading={loading}
+      onAddTransaction={handleOpenAddSheet}
     />
   );
 
@@ -752,6 +778,7 @@ function App() {
     return (
       <TransactionEditSheet
         form={form}
+        transaction={editingTransaction}
         users={familyUsers}
         categories={categories}
         currencyLabel={settings.currency}
@@ -1069,7 +1096,7 @@ function App() {
       {renderAddSheet()}
       {renderEditSheet()}
       {renderCategoryLimitSheet()}
-      {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} onChange={handleCategoriesChange} onSaveCategory={handleSaveCategory} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => handleCategoryLimitChange(categoryId, homeSelectedMonth, value)} onDeleteCategory={async (category) => { try { if (/^[0-9a-f-]{36}$/i.test(category.id)) await deleteCategory(householdId, category.id); setCategories((current) => current.filter((item) => item.id !== category.id)); setStatus(`Категория ${category.name} удалена`); } catch (error) { console.error(error); setStatus('Не удалось удалить категорию'); } }} /> : null}
+      {isCategoryManagerOpen ? <CategoryManagerSheet categories={categories} budgets={categoryBudgets} selectedMonth={homeSelectedMonth} onChange={handleCategoriesChange} onSaveCategory={handleSaveCategory} onClose={() => setIsCategoryManagerOpen(false)} onStatus={setStatus} onUpdateLimit={(categoryId, value) => handleCategoryLimitChange(categoryId, homeSelectedMonth, value)} onDeleteCategory={async (category) => { try { if (/^[0-9a-f-]{36}$/i.test(category.id)) await deleteCategory(householdId, category.id); setCategories((current) => current.filter((item) => item.id !== category.id)); setStatus(`✓ Категория ${category.name} удалена`); } catch (error) { console.error(error); setStatus('Не удалось удалить категорию. Попробуйте ещё раз.'); throw error; } }} /> : null}
       {renderCalendarDaySheet()}
       {renderTransactionDetailSheet()}
       {isDeleteConfirmOpen && selectedTransaction ? (

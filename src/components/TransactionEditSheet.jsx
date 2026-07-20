@@ -1,4 +1,4 @@
-function TransactionEditSheet({ form, users, categories, currencyLabel, isSubmitting, isRateLoading, onChange, onCategorySelect, onClose, onSubmit }) {
+function TransactionEditSheet({ form, transaction, users, categories, currencyLabel, isSubmitting, isRateLoading, onChange, onCategorySelect, onClose, onSubmit }) {
   const availableCategories = categories.filter((category) => !category.archived && category.type === (form.type === 'Расход' ? 'expense' : 'income'));
   const amount = Number(String(form.amount || '').replace(',', '.'));
   const canSave = Number.isFinite(amount) && amount > 0 && form.person && form.category;
@@ -11,6 +11,7 @@ function TransactionEditSheet({ form, users, categories, currencyLabel, isSubmit
           <div>
             <p className="eyebrow">Редактирование</p>
             <h3>Изменить операцию</h3>
+            {transaction ? <p className="transaction-edit-context">{transaction.type} · {transaction.date}{transaction.time ? `, ${transaction.time}` : ''}</p> : null}
           </div>
           <button className="ghost-btn" type="button" onClick={onClose}>Закрыть</button>
         </div>
@@ -21,6 +22,7 @@ function TransactionEditSheet({ form, users, categories, currencyLabel, isSubmit
               {users.map((user) => <option key={user.id} value={user.name}>{user.avatar} {user.name}</option>)}
             </select>
           </label>
+          {form.amount !== '' && !canSave ? <p className="field-error">Введите сумму больше нуля и выберите участника и категорию.</p> : null}
           <label className="field">
             <span>Категория</span>
             <select name="category" value={form.category} onChange={(event) => onCategorySelect(event.target.value)}>
