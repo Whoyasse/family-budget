@@ -687,6 +687,12 @@ button.category-row {
 .settings-actions { display: flex; gap: 8px; justify-content: flex-end; }
 .settings-category-preview { display: flex; gap: 7px; flex-wrap: wrap; }
 .settings-category-preview span { max-width: 100%; padding: 7px 9px; border-radius: 10px; color: var(--theme-muted); background: var(--theme-surface-raised); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.household-start-actions { display: grid; gap: 10px; margin-top: 20px; }
+.access-member-list { display: grid; gap: 8px; }
+.access-role { color: var(--theme-muted); font-size: .84rem; }
+.invite-panel { display: grid; gap: 10px; padding: 14px; border: 1px dashed var(--theme-border); border-radius: 16px; background: var(--accent-soft); }
+.invite-panel p { margin: 0; }
+.invite-code { display: block; width: 100%; box-sizing: border-box; padding: 13px; border-radius: 12px; background: var(--theme-surface); color: var(--accent-bright); font: 700 1.35rem/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; text-align: center; }
 .accent-preview { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px; border-radius: 14px; background: var(--theme-surface-raised); color: var(--theme-muted); }
 @keyframes rates-loading { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 .settings-section { display: grid; gap: 12px; }

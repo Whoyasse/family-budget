@@ -18,6 +18,8 @@ import { useAuth } from './contexts/AuthContext';
 import { useHousehold } from './contexts/HouseholdContext';
 import AuthPage from './pages/AuthPage';
 import HouseholdSetupPage from './pages/HouseholdSetupPage';
+import HouseholdStartPage from './pages/HouseholdStartPage';
+import JoinHouseholdPage from './pages/JoinHouseholdPage';
 
 const PERSON_STORAGE_KEY = 'family-budget-last-person';
 const EXPENSE_CATEGORY_STORAGE_KEY = 'family-budget-last-expense-category';
@@ -76,7 +78,7 @@ function persistSelection(key, value) {
 
 function App() {
   const { session, authUser, loading: authLoading, signOut } = useAuth();
-  const { householdId, household, budgetUsers: familyUsers, loading: householdLoading, onboardingCompleted, createBudgetUser, updateBudgetUser, deleteBudgetUser, updateHouseholdName, completeOnboarding, restartOnboarding } = useHousehold();
+  const { householdId, household, budgetUsers: familyUsers, accessMembers, membershipRole, loading: householdLoading, onboardingCompleted, createBudgetUser, updateBudgetUser, deleteBudgetUser, updateHouseholdName, completeOnboarding, restartOnboarding, joinHousehold } = useHousehold();
   const [settings, setSettings] = useState(() => loadSettings());
   const [categories, setCategories] = useState([]);
   const [categoryBudgets, setCategoryBudgets] = useState({});
@@ -95,6 +97,7 @@ function App() {
   });
   const [view, setView] = useState('home');
   const [settingsSection, setSettingsSection] = useState(null);
+  const [householdStartMode, setHouseholdStartMode] = useState('choice');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [analyticsTab, setAnalyticsTab] = useState('overview');
@@ -169,7 +172,6 @@ function App() {
           setStartBalance(Number(nextSettings.starting_balance ?? 0));
           setSettings((current) => ({
             ...current,
-            currency: nextSettings.currency || current.currency,
             baseCurrency: nextSettings.base_currency || current.baseCurrency
           }));
         }
@@ -455,7 +457,6 @@ function App() {
     setSettings(nextSettings);
     try {
       await saveHouseholdSettings(householdId, {
-        currency: nextSettings.currency,
         base_currency: nextSettings.baseCurrency
       });
     } catch (error) {
@@ -1017,6 +1018,8 @@ function App() {
     transactions,
     users: familyUsers,
     household,
+    accessMembers,
+    membershipRole,
     onUpdateHouseholdName: updateHouseholdName,
     onCreateUser: createBudgetUser,
     onUpdateUser: updateBudgetUser,
@@ -1107,7 +1110,9 @@ function App() {
   }
 
   if (!householdId) {
-    return <HouseholdSetupPage />;
+    if (householdStartMode === 'create') return <HouseholdSetupPage onBack={() => setHouseholdStartMode('choice')} />;
+    if (householdStartMode === 'join') return <JoinHouseholdPage onBack={() => setHouseholdStartMode('choice')} onJoin={async (code) => { await joinHousehold(code); setStatus('Вы присоединились к семье'); }} />;
+    return <HouseholdStartPage onCreate={() => setHouseholdStartMode('create')} onJoin={() => setHouseholdStartMode('join')} />;
   }
 
   if (onboardingCompleted === null) {
