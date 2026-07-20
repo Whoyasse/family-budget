@@ -35,6 +35,11 @@ const CalendarPage = lazy(() => import('./pages/CalendarPage'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const HistoryPage = lazy(() => import('./pages/HistoryPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const SettingsCurrencyPage = lazy(() => import('./pages/SettingsCurrencyPage'));
+const SettingsFamilyPage = lazy(() => import('./pages/SettingsFamilyPage'));
+const SettingsAppearancePage = lazy(() => import('./pages/SettingsAppearancePage'));
+const SettingsCategoriesPage = lazy(() => import('./pages/SettingsCategoriesPage'));
+const SettingsDataPage = lazy(() => import('./pages/SettingsDataPage'));
 const TransactionEditSheet = lazy(() => import('./components/TransactionEditSheet'));
 const CategoryLimitSheet = lazy(() => import('./components/CategoryLimitSheet'));
 const CategoryManagerSheet = lazy(() => import('./components/CategoryManagerSheet'));
@@ -89,6 +94,7 @@ function App() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   });
   const [view, setView] = useState('home');
+  const [settingsSection, setSettingsSection] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [categoryReturnView, setCategoryReturnView] = useState('home');
@@ -203,6 +209,19 @@ function App() {
       .catch((error) => { console.error(error); if (!cancelled) setStatus('Курс валют временно недоступен'); });
     return () => { cancelled = true; };
   }, [settings.baseCurrency, settings.currency]);
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      if (event.state?.familyBudgetSettingsSection) {
+        setView('settings');
+        setSettingsSection(event.state.familyBudgetSettingsSection);
+      } else if (view === 'settings') {
+        setSettingsSection(null);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [view]);
 
   useEffect(() => {
     if (!status) return undefined;
@@ -979,10 +998,18 @@ function App() {
   const renderUserAnalytics = () => selectedUser ? <UserAnalyticsPage user={selectedUser} selectedMonth={homeSelectedMonth} monthlyTransactions={homeFilteredTransactions} allTransactions={transactions} formatCurrency={formatCurrency} formatTransactionDate={formatTransactionDate} getMonthLabel={getMonthLabel} onBack={() => setView('stats')} onOpenTransaction={handleOpenTransactionDetails} /> : null;
   const renderBalance = () => <BalancePage points={balancePoints} formatCurrency={formatCurrency} onBack={() => setView('home')} />;
 
-  const renderSettings = () => <SettingsPage
-    startBalance={startBalance}
-    exchangeRate={exchangeRate}
-    onSaveBalance={async (value) => {
+  const openSettingsSection = (section) => {
+    window.history.pushState({ familyBudgetSettingsSection: section }, '');
+    setSettingsSection(section);
+  };
+  const closeSettingsSection = () => {
+    setSettingsSection(null);
+    if (window.history.state?.familyBudgetSettingsSection) window.history.back();
+  };
+  const settingsSharedProps = {
+    startBalance,
+    exchangeRate,
+    onSaveBalance: async (value) => {
       try {
         await saveHouseholdSettings(householdId, { starting_balance: value });
         setStartBalance(value);
@@ -991,16 +1018,16 @@ function App() {
         console.error(error);
         setStatus('Не удалось сохранить баланс');
       }
-    }}
-    settings={settings}
-    onSettingsChange={handleSettingsChange}
-    transactions={transactions}
-    users={familyUsers}
-    household={household}
-    onUpdateHouseholdName={updateHouseholdName}
-    onCreateUser={createBudgetUser}
-    onUpdateUser={updateBudgetUser}
-    onDeleteUser={async (user) => {
+    },
+    settings,
+    onSettingsChange: handleSettingsChange,
+    transactions,
+    users: familyUsers,
+    household,
+    onUpdateHouseholdName: updateHouseholdName,
+    onCreateUser: createBudgetUser,
+    onUpdateUser: updateBudgetUser,
+    onDeleteUser: async (user) => {
       if (familyUsers.length <= 1) {
         setStatus('Нужен хотя бы один пользователь');
         return;
@@ -1012,19 +1039,27 @@ function App() {
         console.error(error);
         setStatus('Не удалось удалить пользователя с операциями');
       }
-    }}
-    onStatus={setStatus}
-    onExport={async () => { try { await exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } }}
-    onRestartOnboarding={() => { void restartOnboarding().catch((error) => { console.error(error); setStatus('Не удалось перезапустить настройку'); }); }}
-    onManageCategories={() => setIsCategoryManagerOpen(true)}
-    onSignOut={async () => {
+    },
+    onStatus: setStatus,
+    onExport: async () => { try { await exportTransactionsToXlsx(transactions, monthlyTotals); setStatus('Экспорт готов'); } catch (error) { console.error(error); setStatus('Не удалось экспортировать'); } },
+    onRestartOnboarding: () => { void restartOnboarding().catch((error) => { console.error(error); setStatus('Не удалось перезапустить настройку'); }); },
+    onManageCategories: () => setIsCategoryManagerOpen(true),
+    onSignOut: async () => {
       const { error } = await signOut();
       if (error) {
         console.error(error);
         setStatus('Не удалось выйти из аккаунта');
       }
-    }}
-  />;
+    }
+  };
+  const renderSettings = () => {
+    if (settingsSection === 'currency') return <SettingsCurrencyPage {...settingsSharedProps} onBack={closeSettingsSection} />;
+    if (settingsSection === 'family') return <SettingsFamilyPage {...settingsSharedProps} onBack={closeSettingsSection} />;
+    if (settingsSection === 'appearance') return <SettingsAppearancePage {...settingsSharedProps} onBack={closeSettingsSection} />;
+    if (settingsSection === 'categories') return <SettingsCategoriesPage {...settingsSharedProps} categories={categories} onBack={closeSettingsSection} />;
+    if (settingsSection === 'data') return <SettingsDataPage {...settingsSharedProps} onBack={closeSettingsSection} />;
+    return <SettingsPage onOpenSection={openSettingsSection} onSignOut={settingsSharedProps.onSignOut} />;
+  };
 
   const renderCategoryLimitSheet = () => {
     if (!limitCategory) return null;
@@ -1053,6 +1088,7 @@ function App() {
                 setJournalTab('calendar');
               } else {
                 setView(item.id);
+                if (item.id === 'settings') setSettingsSection(null);
               }
             }}
             type="button"
