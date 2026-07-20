@@ -2467,8 +2467,12 @@ button.category-row,
 .analytics-donut { width: min(180px, 54vw); justify-self: center; }
 .analytics-donut .chart-center strong { max-width: 12ch; overflow: hidden; font-size: clamp(.88rem, 3.2vw, 1.05rem); text-overflow: ellipsis; }
 .analytics-category-list { min-width: 0; }
-.analytics-category-row { grid-template-columns: 10px 22px minmax(0, 1fr); gap: 8px; }
+.analytics-category-row { grid-template-columns: 10px 22px minmax(0, 1fr) 12px; gap: 8px; }
 .analytics-category-color { width: 10px; height: 10px; margin-top: 7px; border-radius: 999px; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 10%, transparent); }
+.analytics-category-action { align-self: center; color: var(--accent-bright); font-size: 1.35rem; line-height: 1; }
+.analytics-section-hint { display: block; margin-top: 3px; color: var(--theme-muted); font-size: .7rem; font-weight: 400; }
+.analytics-category-row:hover .analytics-category-action, .analytics-category-row:focus-visible .analytics-category-action { transform: translateX(2px); }
+.analytics-category-action { transition: transform .18s ease; }
 .advanced-analytics-screen .card { min-width: 0; }
 @media (min-width: 480px) { .analytics-donut-layout { grid-template-columns: 180px minmax(0, 1fr); } }
 @media (max-width: 340px) {
@@ -2500,6 +2504,7 @@ button.category-row,
 .inline-confirm > div { display: flex; justify-content: flex-end; gap: 8px; }
 .danger-btn { min-height: 42px; padding: 0 14px; border: 0; border-radius: 12px; background: #d95858; color: #fff; font-weight: 700; }
 .primary-btn:disabled, .danger-btn:disabled { cursor: wait; opacity: .62; }
+.user-month-summary > .eyebrow { margin: 0 0 12px; color: var(--accent-bright) !important; }
 .progress-fill { transition: width 220ms ease; }
 button:focus-visible, [role="button"]:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--accent-soft); outline-offset: 2px; }
 
