@@ -136,12 +136,13 @@ function TransactionWizard({
         <h3>Детали операции</h3>
         <label className="field">
           <span>Комментарий <small>(необязательно)</small></span>
-          <input
+          <textarea
             name="comment"
-            type="text"
             placeholder="Например, супермаркет"
-            value={form.comment}
+            value={form.comment ?? ''}
             onChange={onChange}
+            maxLength={400}
+            rows={3}
           />
         </label>
         <button className="receipt-placeholder-btn" type="button" onClick={onReceiptClick}>

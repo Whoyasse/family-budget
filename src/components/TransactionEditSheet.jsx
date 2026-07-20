@@ -33,6 +33,10 @@ function TransactionEditSheet({ form, transaction, users, categories, currencyLa
             <span>Сумма в {currencyLabel}</span>
             <input name="amount" type="number" inputMode="decimal" min="0" step="0.01" value={form.amount} onChange={onChange} autoFocus />
           </label>
+          <label className="field">
+            <span>Комментарий <small>(необязательно)</small></span>
+            <textarea name="comment" rows={3} maxLength={400} placeholder="Например, супермаркет" value={form.comment ?? ''} onChange={onChange} />
+          </label>
           <button className="primary-btn" type="submit" disabled={!canSave || isSubmitting || isRateLoading}>
             {isSubmitting ? 'Сохраняю…' : 'Сохранить изменения'}
           </button>

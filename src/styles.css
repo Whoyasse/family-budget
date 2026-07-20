@@ -222,7 +222,8 @@ h4 {
 }
 
 .pill-select select,
-.field input {
+.field input,
+.field textarea {
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.06);
@@ -232,7 +233,8 @@ h4 {
 }
 
 .pill-select select:focus,
-.field input:focus {
+.field input:focus,
+.field textarea:focus {
   outline: none;
   border-color: rgba(123, 242, 162, 0.55);
   background: rgba(255, 255, 255, 0.1);
@@ -452,6 +454,18 @@ h4 {
   font-size: .88rem;
   line-height: 1.2;
   overflow-wrap: anywhere;
+}
+
+.field textarea {
+  width: 100%;
+  min-height: 86px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.transaction-comment {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 
 .progress-row {
@@ -1038,7 +1052,8 @@ button.category-row {
 }
 
 .transaction-edit-form select,
-.transaction-edit-form input {
+.transaction-edit-form input,
+.transaction-edit-form textarea {
   width: 100%;
   min-height: 48px;
   border: 1px solid var(--theme-border);
@@ -1051,7 +1066,8 @@ button.category-row {
 }
 
 .transaction-edit-form select:focus,
-.transaction-edit-form input:focus {
+.transaction-edit-form input:focus,
+.transaction-edit-form textarea:focus {
   outline: none;
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px var(--accent-soft);
@@ -1788,6 +1804,7 @@ body,
 .calendar-day,
 .pill-select select,
 .field input,
+.field textarea,
 .budget-edit-form input,
 .settings-inline-form input,
 .onboarding-step input {

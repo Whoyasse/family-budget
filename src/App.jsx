@@ -619,7 +619,7 @@ function App() {
     const storedDate = isEditing ? parseDate(editingTransaction.date) : null;
     const storedTime = isEditing ? parseTimeValue(editingTransaction.time) : null;
     if (storedDate && storedTime) storedDate.setHours(storedTime.getHours(), storedTime.getMinutes(), 0, 0);
-    const payload = { userId: user.id, categoryId: category.id, createdBy: authUser.id, type: form.type, amount, comment: form.comment, occurredAt: storedDate?.toISOString() || new Date().toISOString() };
+    const payload = { userId: user.id, categoryId: category.id, createdBy: authUser.id, type: form.type, amount, comment: form.comment ?? '', occurredAt: storedDate?.toISOString() || new Date().toISOString() };
 
     setIsSubmitting(true);
     try {
@@ -852,7 +852,7 @@ function App() {
                     <div className="transaction-info">
                       <strong>{transaction.category}</strong>
                       <p>{transaction.person ? `• ${transaction.person}` : ''}</p>
-                      <p className="transaction-comment">{transaction.comment || `${getCategoryIcon(transaction.category)} ${transaction.type}`}</p>
+                      {transaction.comment ? <p className="transaction-comment">{transaction.comment}</p> : null}
                     </div>
                     <div className="transaction-meta">
                       <span className={`amount ${transaction.type === 'Доход' ? 'positive' : 'negative'}`}>
