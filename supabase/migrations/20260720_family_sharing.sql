@@ -17,7 +17,10 @@ with ranked_members as (
   from public.household_members
 )
 update public.household_members hm
-set role = case when ranked_members.position = 1 then 'owner' else 'member' end
+set role = case
+  when ranked_members.position = 1 then 'owner'::public.household_role
+  else 'member'::public.household_role
+end
 from ranked_members
 where ranked_members.ctid = hm.ctid;
 
