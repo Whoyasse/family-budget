@@ -73,8 +73,8 @@ begin
   where hm.auth_user_id = auth.uid() and hm.role = 'owner';
   if current_household is null then raise exception 'not_household_owner' using errcode = '42501'; end if;
 
-  update public.household_invites set revoked_at = now()
-  where household_id = current_household and used_at is null and revoked_at is null and expires_at > now();
+  update public.household_invites as hi set revoked_at = now()
+  where hi.household_id = current_household and hi.used_at is null and hi.revoked_at is null and hi.expires_at > now();
 
   raw := gen_random_bytes(8); generated_code := '';
   for i in 0..7 loop generated_code := generated_code || substr(alphabet, (get_byte(raw, i) % length(alphabet)) + 1, 1); end loop;
