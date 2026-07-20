@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { formatTransactionDate, getMonthLabel } from '../utils/date';
 import { getCategoryColor } from '../data/categories';
+import { resolveCategoryColor } from '../utils/categoryColors';
 import {
   ANALYTICS_PERIODS, filterAnalyticsPeriod, getAnalyticsRange, getAnalyticsSummary, getCategoryAnalytics,
   getComparison, getExpenseAverages, getMonthForecast,
@@ -28,7 +29,7 @@ function UserExpenseRow({ entry, formatCurrency, onOpenUser }) {
     : <div className="analytics-user-row">{content}</div>;
 }
 
-function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurrency, getCategoryIcon, onBack, onOpenCategory, onOpenUser, onOpenTransaction, activeTab = 'overview', onTabChange }) {
+function AnalyticsPage({ selectedMonth, allTransactions, users = [], categories: categoryMetadata = [], formatCurrency, getCategoryIcon, onBack, onOpenCategory, onOpenUser, onOpenTransaction, activeTab = 'overview', onTabChange }) {
   const [periodId, setPeriodId] = useState('current');
   const [isPeriodOpen, setIsPeriodOpen] = useState(false);
   const range = useMemo(() => getAnalyticsRange(selectedMonth, periodId), [selectedMonth, periodId]);
@@ -37,14 +38,15 @@ function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurre
   const summary = useMemo(() => getAnalyticsSummary(items), [items]);
   const comparison = useMemo(() => getComparison(summary, getAnalyticsSummary(previous)), [summary, previous]);
   const categories = useMemo(() => getCategoryAnalytics(items), [items]);
+  const categoryColor = (name) => resolveCategoryColor(categoryMetadata.find((category) => category.name === name)) || getCategoryColor(name);
   const donutSegments = useMemo(() => {
     let offset = 0;
     return categories.map((item) => {
-      const segment = { ...item, offset, color: getCategoryColor(item.category) };
+      const segment = { ...item, offset, color: categoryColor(item.category) };
       offset += item.percent;
       return segment;
     });
-  }, [categories]);
+  }, [categories, categoryMetadata]);
   const topOperations = useMemo(() => getTopTransactions(items), [items]);
   const userExpenses = useMemo(() => getUserExpenses(items, users), [items, users]);
   const averages = useMemo(() => getExpenseAverages(items, range), [items, range]);
@@ -60,7 +62,7 @@ function AnalyticsPage({ selectedMonth, allTransactions, users = [], formatCurre
   </>;
 
   const categoryTab = <>
-    <section className="card"><div className="section-title"><div><h4>Расходы по категориям</h4><small className="analytics-section-hint">Нажмите на категорию, чтобы открыть детали</small></div><span className="responsive-money">{formatCurrency(summary.expense)}</span></div>{categories.length ? <div className="analytics-donut-layout"><div className="chart-shell analytics-donut"><svg viewBox="0 0 120 120" className="donut-chart" aria-label="Распределение расходов по категориям"><circle cx="60" cy="60" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="18" />{donutSegments.map((segment) => { const radius = 42; const circle = 2 * Math.PI * radius; const length = segment.percent / 100 * circle; return <circle key={segment.category} cx="60" cy="60" r={radius} fill="none" stroke={segment.color} strokeWidth="18" strokeDasharray={`${Math.max(0, length - 2)} ${circle - Math.max(0, length - 2)}`} strokeDashoffset={-(segment.offset / 100) * circle} transform="rotate(-90 60 60)" />; })}</svg><div className="chart-center"><strong className="responsive-money">{formatCurrency(summary.expense)}</strong><span>расходов</span></div></div><div className="analytics-category-list">{categories.slice(0, 5).map((item) => <button key={item.category} type="button" className="analytics-category-row" onClick={() => onOpenCategory(item.category)}><i className="analytics-category-color" style={{ backgroundColor: getCategoryColor(item.category) }} /><span>{getCategoryIcon(item.category)}</span><div><strong>{item.category}</strong><small className="responsive-money">{formatCurrency(item.amount)} · {item.percent.toFixed(0)}%</small><div className="progress-bar"><div className="progress-fill" style={{ width: `${item.percent}%`, backgroundColor: getCategoryColor(item.category) }} /></div></div><span className="analytics-category-action" aria-hidden="true">›</span></button>)}</div></div> : <Empty>За выбранный период расходов не было.</Empty>}</section>
+    <section className="card"><div className="section-title"><div><h4>Расходы по категориям</h4><small className="analytics-section-hint">Нажмите на категорию, чтобы открыть детали</small></div><span className="responsive-money">{formatCurrency(summary.expense)}</span></div>{categories.length ? <div className="analytics-donut-layout"><div className="chart-shell analytics-donut"><svg viewBox="0 0 120 120" className="donut-chart" aria-label="Распределение расходов по категориям"><circle cx="60" cy="60" r="42" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="18" />{donutSegments.map((segment) => { const radius = 42; const circle = 2 * Math.PI * radius; const length = segment.percent / 100 * circle; return <circle key={segment.category} cx="60" cy="60" r={radius} fill="none" stroke={segment.color} strokeWidth="18" strokeDasharray={`${Math.max(0, length - 2)} ${circle - Math.max(0, length - 2)}`} strokeDashoffset={-(segment.offset / 100) * circle} transform="rotate(-90 60 60)" />; })}</svg><div className="chart-center"><strong className="responsive-money">{formatCurrency(summary.expense)}</strong><span>расходов</span></div></div><div className="analytics-category-list">{categories.slice(0, 5).map((item) => <button key={item.category} type="button" className="analytics-category-row" onClick={() => onOpenCategory(item.category)}><i className="analytics-category-color" style={{ backgroundColor: categoryColor(item.category) }} /><span>{getCategoryIcon(item.category)}</span><div><strong>{item.category}</strong><small className="responsive-money">{formatCurrency(item.amount)} · {item.percent.toFixed(0)}%</small><div className="progress-bar"><div className="progress-fill" style={{ width: `${item.percent}%`, backgroundColor: categoryColor(item.category) }} /></div></div><span className="analytics-category-action" aria-hidden="true">›</span></button>)}</div></div> : <Empty>За выбранный период расходов не было.</Empty>}</section>
     <section className="card"><div className="section-title"><h4>Крупные операции</h4><span>Топ-5</span></div>{topOperations.length ? <div className="transaction-list">{topOperations.map((item) => <button key={item.id} type="button" className="transaction-item transaction-item--interactive" onClick={() => onOpenTransaction?.(item)}><div className="transaction-icon">{getCategoryIcon(item.category)}</div><div className="transaction-info"><strong>{item.category}</strong><p>• {item.person}</p>{item.comment ? <p className="transaction-comment">{item.comment}</p> : null}</div><div className="transaction-meta"><span className="amount negative responsive-money">-{formatCurrency(item.amount)}</span><p>{formatTransactionDate(item.date, item.time)}</p></div></button>)}</div> : <Empty>Крупных расходов за период нет.</Empty>}</section>
   </>;
 
