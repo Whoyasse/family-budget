@@ -19,7 +19,6 @@ function TransactionWizard({
 }) {
   const [step, setStep] = useState(1);
   const amountInputRef = useRef(null);
-  const touchStartYRef = useRef(null);
   const amount = Number(String(form.amount || '').replace(',', '.'));
   const canContinue = Number.isFinite(amount) && amount > 0;
   const hasCategories = categoryOptions.length > 0;
@@ -35,6 +34,12 @@ function TransactionWizard({
       onChange({ target: { name, value } });
     }
     setStep(nextStep);
+  };
+
+  const advanceToDetails = (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setStep(5);
   };
 
   const renderStep = () => {
@@ -124,7 +129,7 @@ function TransactionWizard({
             />
           </label>
           {form.amount !== '' && !canContinue ? <p className="field-error">Введите сумму больше нуля.</p> : null}
-          <button className="primary-btn wizard-primary" type="button" disabled={!canContinue || isRateLoading} onClick={() => setStep(5)}>
+          <button className="primary-btn wizard-primary" type="button" disabled={!canContinue || isRateLoading} onClick={advanceToDetails}>
             {isRateLoading ? 'Загружаю курс…' : 'Продолжить'}
           </button>
         </div>
@@ -157,19 +162,7 @@ function TransactionWizard({
 
   return (
     <div className="sheet-backdrop wizard-backdrop" onClick={onClose}>
-      <div
-        className={`sheet-card wizard-sheet wizard-sheet--step-${step}`}
-        onClick={(event) => event.stopPropagation()}
-        onTouchStart={(event) => {
-          touchStartYRef.current = event.touches[0].clientY;
-        }}
-        onTouchEnd={(event) => {
-          if (touchStartYRef.current === null) return;
-          const deltaY = event.changedTouches[0].clientY - touchStartYRef.current;
-          if (deltaY > 90) onClose();
-          touchStartYRef.current = null;
-        }}
-      >
+      <div className={`sheet-card wizard-sheet wizard-sheet--step-${step}`} onClick={(event) => event.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="sheet-header wizard-header">
           <div>
