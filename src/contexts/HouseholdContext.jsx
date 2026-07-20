@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { createBudgetUser as createBudgetUserRecord, loadBudgetUsers as loadBudgetUserRecords, removeBudgetUser, updateBudgetUser as updateBudgetUserRecord } from '../services/budgetUsersService';
 import { loadHouseholdSettings, saveHouseholdSettings } from '../services/settingsService';
 import { getSupabaseErrorDetails } from '../services/supabaseError';
+import { acceptHouseholdInvite, getHouseholdAccessMembers } from '../services/householdInvitesService';
 import { useAuth } from './AuthContext';
 
 const HouseholdContext = createContext(null);
@@ -17,7 +18,7 @@ const normalizeBudgetUser = (user) => ({
 
 export function HouseholdProvider({ children }) {
   const { authUser } = useAuth();
-  const [state, setState] = useState({ householdId: null, household: null, membershipRole: null, budgetUsers: [], loading: true, onboardingCompleted: null });
+  const [state, setState] = useState({ householdId: null, household: null, membershipRole: null, accessMembers: [], budgetUsers: [], loading: true, onboardingCompleted: null });
 
   const loadBudgetUsers = useCallback(async (householdId) => {
     const data = await loadBudgetUserRecords(householdId);
@@ -66,13 +67,14 @@ export function HouseholdProvider({ children }) {
 
   const refreshHousehold = useCallback(async () => {
     if (!authUser) {
-      setState({ householdId: null, household: null, membershipRole: null, budgetUsers: [], loading: false, onboardingCompleted: null });
+      setState({ householdId: null, household: null, membershipRole: null, accessMembers: [], budgetUsers: [], loading: false, onboardingCompleted: null });
       return;
     }
     setState((current) => ({ ...current, loading: true }));
     const { data, error } = await supabase.from('household_members').select('household_id, role, households(id, name)').eq('auth_user_id', authUser.id).limit(1).maybeSingle();
     if (error) getSupabaseErrorDetails(error, 'household_members.load');
     let budgetUsers = [];
+    let accessMembers = [];
     let onboardingCompleted = false;
     if (data?.household_id) {
       try {
@@ -82,9 +84,10 @@ export function HouseholdProvider({ children }) {
           await saveHouseholdSettings(data.household_id, { onboarding_completed: false });
         }
         budgetUsers = await loadBudgetUsers(data.household_id);
+        accessMembers = await getHouseholdAccessMembers();
       } catch (loadError) { getSupabaseErrorDetails(loadError.supabase || loadError, 'household.bootstrap'); }
     }
-    setState({ householdId: data?.household_id || null, household: data?.households || null, membershipRole: data?.role || null, budgetUsers, loading: false, onboardingCompleted });
+    setState({ householdId: data?.household_id || null, household: data?.households || null, membershipRole: data?.role || null, accessMembers, budgetUsers, loading: false, onboardingCompleted });
   }, [authUser, loadBudgetUsers]);
 
   const completeOnboarding = useCallback(async () => {
@@ -98,9 +101,13 @@ export function HouseholdProvider({ children }) {
     await saveHouseholdSettings(state.householdId, { onboarding_completed: false });
     setState((current) => ({ ...current, onboardingCompleted: false }));
   }, [state.householdId]);
+  const joinHousehold = useCallback(async (code) => {
+    await acceptHouseholdInvite(code);
+    await refreshHousehold();
+  }, [refreshHousehold]);
   useEffect(() => { refreshHousehold(); }, [refreshHousehold]);
 
-  return <HouseholdContext.Provider value={{ ...state, refreshHousehold, completeOnboarding, restartOnboarding, updateHouseholdName, createBudgetUser, updateBudgetUser, deleteBudgetUser }}>{children}</HouseholdContext.Provider>;
+  return <HouseholdContext.Provider value={{ ...state, refreshHousehold, completeOnboarding, restartOnboarding, joinHousehold, updateHouseholdName, createBudgetUser, updateBudgetUser, deleteBudgetUser }}>{children}</HouseholdContext.Provider>;
 }
 
 export const useHousehold = () => useContext(HouseholdContext);

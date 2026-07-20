@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useHousehold } from '../contexts/HouseholdContext';
 import { supabase } from '../lib/supabase';
 
-function HouseholdSetupPage() {
+function HouseholdSetupPage({ onBack }) {
   const { refreshHousehold } = useHousehold();
   const [name, setName] = useState('Моя семья');
   const [submitting, setSubmitting] = useState(false);
@@ -33,6 +33,7 @@ function HouseholdSetupPage() {
   return (
     <main className="auth-shell">
       <section className="card auth-card household-card">
+        {onBack ? <button className="back-btn" type="button" onClick={onBack}>← Назад</button> : null}
         <p className="eyebrow">Первый шаг</p>
         <h1>Создание семьи</h1>
         <p className="muted">Создайте пространство, в котором будут храниться общие операции, категории и настройки.</p>
